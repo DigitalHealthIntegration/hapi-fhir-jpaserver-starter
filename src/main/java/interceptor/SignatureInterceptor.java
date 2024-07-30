@@ -162,7 +162,7 @@ public class SignatureInterceptor extends FilterSecurityInterceptor {
 		}
 	}
 
-	private Boolean getPublicKeyAndVerify(String signatureHeader, String token, String timeStampHeader, String keyId)
+	public Boolean getPublicKeyAndVerify(String signatureHeader, String token, String timeStampHeader, String keyId)
 			throws Exception {
 		long currentTimestamp = Instant.now().getEpochSecond();
 		long receivedTimeStamp = Long.parseLong(timeStampHeader);
