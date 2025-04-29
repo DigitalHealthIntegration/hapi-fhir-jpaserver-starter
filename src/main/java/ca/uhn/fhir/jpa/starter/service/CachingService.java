@@ -431,7 +431,6 @@ public class CachingService {
 //		logger.warn("-- Time for Caching Async Barchar  "+String.valueOf(diff));
 	}
 
-	// Wrapper class for BarComponentData
 	private static class BarComponentDataWrapper {
 		final BarComponentData data;
 		final int chartId;
@@ -444,7 +443,6 @@ public class CachingService {
 		}
 	}
 
-	// Wrapper class for BarComponent
 	private static class BarComponentWrapper {
 		final BarComponent component;
 		final int chartId;
@@ -526,7 +524,6 @@ public class CachingService {
 //		logger.warn("-- Time for Caching Async PieChart  "+String.valueOf(diff));
 	}
 
-	// Wrapper class for PieChartItem
 	private static class PieChartItemWrapper {
 		final PieChartItem item;
 		final String categoryId;
@@ -537,7 +534,6 @@ public class CachingService {
 		}
 	}
 
-	// Wrapper class for PieChartCategoryDefinition
 	private static class PieChartCategoryWrapper {
 		final PieChartCategoryDefinition categoryDefinition;
 		final String categoryId;
@@ -598,7 +594,6 @@ public class CachingService {
 //		logger.warn("-- Time for Caching Async LineData  "+String.valueOf(diff));
 	}
 
-	// Wrapper class for LineChartItem
 	private static class LineChartItemWrapper {
 		final LineChartItem item;
 		final int chartId;
@@ -609,7 +604,6 @@ public class CachingService {
 		}
 	}
 
-	// Wrapper class for LineChartItemDefinition
 	private static class LineChartItemDefinitionWrapper {
 		final LineChartItemDefinition definition;
 		final int chartId;
