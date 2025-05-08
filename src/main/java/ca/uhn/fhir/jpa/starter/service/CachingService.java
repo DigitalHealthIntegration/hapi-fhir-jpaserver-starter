@@ -24,7 +24,12 @@ import java.nio.charset.StandardCharsets;
 import java.sql.Date;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Collections;
+import java.util.Set;
 import java.util.function.Function;
 
 @Import(AppProperties.class)
@@ -58,10 +63,10 @@ public class CachingService {
 		Function<U, K> fallbackIdExtractor,
 		double fallbackValue
 	) {
-		if (items != null) {
-			ArrayList<CacheEntity> cacheEntitiesForInsert = new ArrayList<>();
-			ArrayList<CacheEntity> cacheEntitiesForUpdate = new ArrayList<>();
+		ArrayList<CacheEntity> cacheEntitiesForInsert = new ArrayList<>();
+		ArrayList<CacheEntity> cacheEntitiesForUpdate = new ArrayList<>();
 
+		if (items != null) {
 			items.forEach(item -> {
 				OperationHelper.doWithRetry(MAX_RETRY, new Operation() {
 					@Override
@@ -84,14 +89,10 @@ public class CachingService {
 					}
 				});
 			});
-
-			notificationDataSource.insertObjects(cacheEntitiesForInsert);
-			notificationDataSource.updateObjects(cacheEntitiesForUpdate);
 		} else {
-			ArrayList<CacheEntity> cacheEntitiesForInsert = new ArrayList<>();
-
 			fallbackItems.forEach(item -> {
-				List<CacheEntity> cacheEntities = notificationDataSource.getCacheByDateIndicatorAndOrgId(date, mapOfIdToMd5.get(fallbackIdExtractor.apply(item)), orgId);
+				List<CacheEntity> cacheEntities = notificationDataSource.getCacheByDateIndicatorAndOrgId(
+					date, mapOfIdToMd5.get(fallbackIdExtractor.apply(item)), orgId);
 				if (cacheEntities.isEmpty()) {
 					CacheEntity cacheEntity = new CacheEntity(
 						orgId,
@@ -103,9 +104,10 @@ public class CachingService {
 					cacheEntitiesForInsert.add(cacheEntity);
 				}
 			});
-
-			notificationDataSource.insertObjects(cacheEntitiesForInsert);
 		}
+
+		notificationDataSource.insertObjects(cacheEntitiesForInsert);
+		notificationDataSource.updateObjects(cacheEntitiesForUpdate);
 	}
 
 	@Async("asyncTaskExecutor")
@@ -122,10 +124,10 @@ public class CachingService {
 		Function<U, K> fallbackIdExtractor,
 		double fallbackValue
 	){
-		if(items !=null) {
-			ArrayList<CacheEntity> cacheEntitiesForInsert = new ArrayList<>();
-			ArrayList<CacheEntity> cacheEntitiesForUpdate = new ArrayList<>();
+		ArrayList<CacheEntity> cacheEntitiesForInsert = new ArrayList<>();
+		ArrayList<CacheEntity> cacheEntitiesForUpdate = new ArrayList<>();
 
+		if (items != null) {
 			for (T item : items) {
 				OperationHelper.doWithRetry(MAX_RETRY, new Operation() {
 					@Override
@@ -148,14 +150,11 @@ public class CachingService {
 					}
 				});
 			}
-			notificationDataSource.insertObjects(cacheEntitiesForInsert);
-			notificationDataSource.updateObjects(cacheEntitiesForUpdate);
 		} else {
-			ArrayList<CacheEntity> cacheEntitiesForInsert = new ArrayList<>();
-
-			for(U item : fallbackItems) {
-				List<CacheEntity> cacheEntities = notificationDataSource.getCacheByDateIndicatorAndOrgId(date,mapOfIdToMd5.get(fallbackIdExtractor.apply(item)),orgId);
-				if(cacheEntities.isEmpty()){
+			for (U item : fallbackItems) {
+				List<CacheEntity> cacheEntities = notificationDataSource.getCacheByDateIndicatorAndOrgId(
+					date, mapOfIdToMd5.get(fallbackIdExtractor.apply(item)), orgId);
+				if (cacheEntities.isEmpty()) {
 					CacheEntity cacheEntity = new CacheEntity(
 						orgId,
 						mapOfIdToMd5.get(fallbackIdExtractor.apply(item)),
@@ -166,14 +165,13 @@ public class CachingService {
 					cacheEntitiesForInsert.add(cacheEntity);
 				}
 			}
-			notificationDataSource.insertObjects(cacheEntitiesForInsert);
 		}
+		notificationDataSource.insertObjects(cacheEntitiesForInsert);
+		notificationDataSource.updateObjects(cacheEntitiesForUpdate);
 	}
 
 
-	public void cacheData(String orgId, Date startDate, List<IndicatorItem>indicators, int count, Map<String, List<ScoreCardItem>> map,String filterString) {
-	   long start = System.nanoTime();
-
+	public void cacheData(String orgId, Date startDate, List<IndicatorItem>indicators, int count, Map<String, List<ScoreCardItem>> map, String filterString) {
 		notificationDataSource = NotificationDataSource.getInstance();
 		LinkedHashMap<Integer, String> mapOfIdToMd5 = new LinkedHashMap<>();
 		for (IndicatorItem item : indicators) {
@@ -182,17 +180,10 @@ public class CachingService {
 
 		List<ScoreCardItem> data = map.get(startDate.toLocalDate().toString());
 		final Date date = (Date) startDate.clone();
-
 		cacheDataGeneric(notificationDataSource, data, orgId, date, mapOfIdToMd5, ScoreCardItem::getIndicatorId, ScoreCardItem::getOrgId, ScoreCardItem::getValue, indicators, IndicatorItem::getId, -1.0);
-
-		long end = System.nanoTime();
-		double diff = (end - start) / 1_000_000.0;;
-//		logger.warn("-- Time for Caching Score card  "+String.valueOf(diff));
 	}
 
 	public void cacheDataForBarChart(String orgId, Date startDate, List<BarChartDefinition> barCharts,int count,Map<String, List<BarChartItemDataCollection>> map,String filterString) {
-		long start = System.nanoTime();
-
 		notificationDataSource = NotificationDataSource.getInstance();
 		LinkedHashMap<String, String> mapOfIdToMd5 = new LinkedHashMap<>();
 		List<BarComponentWrapper> fallbackItems = new ArrayList<>();
@@ -239,14 +230,9 @@ public class CachingService {
 			0.0
 		);
 
-		long end = System.nanoTime();
-		double diff = (end - start) / 1_000_000.0;;
-//		logger.warn("-- Time for Caching BarChart  "+String.valueOf(diff));
 	}
 
 	public void cacheTabularData(String orgId, Date startDate, List<TabularItem> indicators,int count,Map<String, List<ScoreCardItem>> map,String filterString) {
-		long start = System.nanoTime();
-
 		notificationDataSource = NotificationDataSource.getInstance();
 		LinkedHashMap<Integer, String> mapOfIdToMd5 = new LinkedHashMap<>();
 		for (TabularItem item : indicators) {
@@ -257,15 +243,9 @@ public class CachingService {
 		final Date date = (Date) startDate.clone();
 
 		cacheDataGeneric(notificationDataSource, data, orgId, date, mapOfIdToMd5, ScoreCardItem::getIndicatorId, ScoreCardItem::getOrgId, ScoreCardItem::getValue, indicators, TabularItem::getId, 0.0);
-
-		long end = System.nanoTime();
-		double diff = (end - start) / 1_000_000.0;;
-//		logger.warn("-- Time for Caching TabularData  "+String.valueOf(diff));
 	}
 
 	public void cachePieChartData(String orgId, Date startDate, List<PieChartDefinition> pieChartDefinitions,int count,Map<String, List<PieChartItemDataCollection>> map,String filterString){
-		long start = System.nanoTime();
-
 		notificationDataSource = NotificationDataSource.getInstance();
 		LinkedHashMap<String, String> mapOfIdToMd5 = new LinkedHashMap<>();
 		List<PieChartCategoryWrapper> fallbackItems = new ArrayList<>();
@@ -300,15 +280,9 @@ public class CachingService {
 			wrapper -> String.valueOf(wrapper.categoryDefinition.getId()) + wrapper.categoryId,
 			0.0
 		);
-
-		long end = System.nanoTime();
-		double diff = (end - start) / 1_000_000.0;;
-//		logger.warn("-- Time for Caching PieChart  "+String.valueOf(diff));
 	}
 
 	public void cacheDataLineChart(String orgId, Date startDate, List<LineChart> lineCharts,int count,Map<String, List<LineChartItemCollection>> map,String filterString) {
-		long start = System.nanoTime();
-
 		notificationDataSource = NotificationDataSource.getInstance();
 		LinkedHashMap<String, String> mapOfIdToMd5 = new LinkedHashMap<>();
 		List<LineChartItemDefinitionWrapper> fallbackItems = new ArrayList<>();
@@ -348,16 +322,10 @@ public class CachingService {
 			wrapper -> String.valueOf(wrapper.chartId) + " " + String.valueOf(wrapper.definition.getId()),
 			0.0
 		);
-
-		long end = System.nanoTime();
-		double diff = (end - start) / 1_000_000.0;;
-//		logger.warn("-- Time for Caching LineChart  "+String.valueOf(diff));
 	}
 
 	@Async("asyncTaskExecutor")
 	public void cacheData(String orgId, Date date, List<IndicatorItem> indicators,String filterString) {
-		long startTime = System.nanoTime();
-
 		notificationDataSource = NotificationDataSource.getInstance();
 		LinkedHashMap<Integer, String> mapOfIdToMd5 = new LinkedHashMap<>();
 		for (IndicatorItem item : indicators) {
@@ -369,16 +337,10 @@ public class CachingService {
 			.get(date.toLocalDate().toString());
 
 		cacheDataAsyncGeneric(notificationDataSource, data, orgId, date, mapOfIdToMd5, ScoreCardItem::getIndicatorId, ScoreCardItem::getOrgId, ScoreCardItem::getValue, indicators, IndicatorItem::getId, -1.0);
-
-		long endTime = System.nanoTime();
-		long diff = (endTime - startTime);
-//		logger.warn("-- Time for Caching Async cacheData  "+String.valueOf(diff));
 	}
 
 	@Async("asyncTaskExecutor")
 	public void cacheDataForBarChart(String orgId, Date date, List<BarChartDefinition> barCharts,int count,String filterString) {
-		long startTime = System.nanoTime();
-
 		notificationDataSource = NotificationDataSource.getInstance();
 		LinkedHashMap<String, String> mapOfIdToMd5 = new LinkedHashMap<>();
 		List<BarComponentWrapper> fallbackItems = new ArrayList<>();
@@ -425,10 +387,6 @@ public class CachingService {
 			item -> String.valueOf(item.chartId) + " " + String.valueOf(item.barChartItemId) + " " + String.valueOf(item.component.getId()),
 			0.0
 		);
-
-		long endTime = System.nanoTime();
-		long diff = (endTime - startTime);
-//		logger.warn("-- Time for Caching Async Barchar  "+String.valueOf(diff));
 	}
 
 	private static class BarComponentDataWrapper {
@@ -470,17 +428,10 @@ public class CachingService {
 			.get(date.toLocalDate().toString());
 
 		cacheDataAsyncGeneric(notificationDataSource, scoreCardItems, orgId, date, mapOfIdToMd5, ScoreCardItem::getIndicatorId, ScoreCardItem::getOrgId, ScoreCardItem::getValue, indicators, TabularItem::getId, 0.0);
-
-		long endTime = System.nanoTime();
-		long diff = (endTime - startTime);
-//		logger.warn("-- Time for Caching Async TabularData  "+String.valueOf(diff));
 	}
 
 	@Async("asyncTaskExecutor")
 	public void cachePieChartData(String orgId, Date date, List<PieChartDefinition> pieChartDefinitions,int count,String filterString){
-
-		long startTime = System.nanoTime();
-
 		notificationDataSource = NotificationDataSource.getInstance();
 		LinkedHashMap<String, String> mapOfIdToMd5 = new LinkedHashMap<>();
 		List<PieChartCategoryWrapper> fallbackItems = new ArrayList<>();
@@ -518,10 +469,6 @@ public class CachingService {
 			item -> String.valueOf(item.categoryDefinition.getId()) + item.categoryId,
 			0.0
 		);
-
-		long endTime = System.nanoTime();
-		long diff = (endTime - startTime);
-//		logger.warn("-- Time for Caching Async PieChart  "+String.valueOf(diff));
 	}
 
 	private static class PieChartItemWrapper {
@@ -546,8 +493,6 @@ public class CachingService {
 
 	@Async("asyncTaskExecutor")
 	public void cacheDataLineChart(String orgId, Date date, List<LineChart> lineCharts,int count,String filterString) {
-		long startTime = System.nanoTime();
-
 		notificationDataSource = NotificationDataSource.getInstance();
 		LinkedHashMap<String, String> mapOfIdToMd5 = new LinkedHashMap<>();
 		List<LineChartItemDefinitionWrapper> fallbackItems = new ArrayList<>();
@@ -588,10 +533,6 @@ public class CachingService {
 			item -> String.valueOf(item.chartId) + " " + String.valueOf(item.definition.getId()),
 			0.0
 		);
-
-		long endTime = System.nanoTime();
-		long diff = (endTime - startTime);
-//		logger.warn("-- Time for Caching Async LineData  "+String.valueOf(diff));
 	}
 
 	private static class LineChartItemWrapper {
