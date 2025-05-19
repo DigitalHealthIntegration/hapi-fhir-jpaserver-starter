@@ -50,7 +50,7 @@ public class CachingService {
 	private static final long DELAY = 3600000;
 
 
-	private <T, U, K> void cacheDataGeneric(
+	private <T, U, K> void cacheChartsData(
 		NotificationDataSource notificationDataSource,
 		List<T> items,
 		String orgId,
@@ -111,7 +111,7 @@ public class CachingService {
 	}
 
 	@Async("asyncTaskExecutor")
-	private <T, U, K> void cacheDataAsyncGeneric(
+	private <T, U, K> void cacheChartsDataAsync(
 		NotificationDataSource notificationDataSource,
 		List<T> items,
 		String orgId,
@@ -180,10 +180,10 @@ public class CachingService {
 
 		List<ScoreCardItem> data = map.get(startDate.toLocalDate().toString());
 		final Date date = (Date) startDate.clone();
-		cacheDataGeneric(notificationDataSource, data, orgId, date, mapOfIdToMd5, ScoreCardItem::getIndicatorId, ScoreCardItem::getOrgId, ScoreCardItem::getValue, indicators, IndicatorItem::getId, -1.0);
+		cacheChartsData(notificationDataSource, data, orgId, date, mapOfIdToMd5, ScoreCardItem::getIndicatorId, ScoreCardItem::getOrgId, ScoreCardItem::getValue, indicators, IndicatorItem::getId, -1.0);
 	}
 
-	public void cacheDataForBarChart(String orgId, Date startDate, List<BarChartDefinition> barCharts,int count,Map<String, List<BarChartItemDataCollection>> map,String filterString) {
+	public void cacheDataForBarChart(String orgId, Date startDate, List<BarChartDefinition> barCharts, int count, Map<String, List<BarChartItemDataCollection>> map, String filterString) {
 		notificationDataSource = NotificationDataSource.getInstance();
 		LinkedHashMap<String, String> mapOfIdToMd5 = new LinkedHashMap<>();
 		List<BarComponentWrapper> fallbackItems = new ArrayList<>();
@@ -221,9 +221,9 @@ public class CachingService {
 			});
 		}
 
-		cacheDataGeneric(notificationDataSource, flatBarComponentData, orgId, date, mapOfIdToMd5,
+		cacheChartsData(notificationDataSource, flatBarComponentData, orgId, date, mapOfIdToMd5,
 			wrapper -> String.valueOf(wrapper.chartId) + " " + String.valueOf(wrapper.categoryId) + " " + String.valueOf(wrapper.data.getId()),
-			wrapper -> orgId, // BarComponentData may not have getOrgId, using orgId
+			wrapper -> orgId,
 			wrapper -> wrapper.data.getValue(),
 			fallbackItems,
 			wrapper -> String.valueOf(wrapper.chartId) + " " + String.valueOf(wrapper.barChartItemId) + " " + String.valueOf(wrapper.component.getId()),
@@ -242,7 +242,7 @@ public class CachingService {
 		List<ScoreCardItem> data = map.get(startDate.toLocalDate().toString());
 		final Date date = (Date) startDate.clone();
 
-		cacheDataGeneric(notificationDataSource, data, orgId, date, mapOfIdToMd5, ScoreCardItem::getIndicatorId, ScoreCardItem::getOrgId, ScoreCardItem::getValue, indicators, TabularItem::getId, 0.0);
+		cacheChartsData(notificationDataSource, data, orgId, date, mapOfIdToMd5, ScoreCardItem::getIndicatorId, ScoreCardItem::getOrgId, ScoreCardItem::getValue, indicators, TabularItem::getId, 0.0);
 	}
 
 	public void cachePieChartData(String orgId, Date startDate, List<PieChartDefinition> pieChartDefinitions,int count,Map<String, List<PieChartItemDataCollection>> map,String filterString){
@@ -272,7 +272,7 @@ public class CachingService {
 			});
 		}
 
-		cacheDataGeneric(notificationDataSource, flatPieChartItems, orgId, date, mapOfIdToMd5,
+		cacheChartsData(notificationDataSource, flatPieChartItems, orgId, date, mapOfIdToMd5,
 			wrapper -> String.valueOf(wrapper.item.getId()) + wrapper.categoryId,
 			wrapper -> wrapper.item.getOrgId(),
 			wrapper -> wrapper.item.getValue(),
@@ -314,9 +314,9 @@ public class CachingService {
 			});
 		}
 
-		cacheDataGeneric(notificationDataSource, flatLineChartItems, orgId, date, mapOfIdToMd5,
+		cacheChartsData(notificationDataSource, flatLineChartItems, orgId, date, mapOfIdToMd5,
 			wrapper -> String.valueOf(wrapper.chartId) + " " + String.valueOf(wrapper.item.getLineId()),
-			wrapper -> orgId, // LineChartItem may not have getOrgId, using orgId
+			wrapper -> orgId,
 			wrapper -> wrapper.item.getValue(),
 			fallbackItems,
 			wrapper -> String.valueOf(wrapper.chartId) + " " + String.valueOf(wrapper.definition.getId()),
@@ -336,7 +336,7 @@ public class CachingService {
 			.getFacilityData(fhirClientProvider, orgId, new DateRange(date.toString(), date.toString()), indicators, Collections.emptyList())
 			.get(date.toLocalDate().toString());
 
-		cacheDataAsyncGeneric(notificationDataSource, data, orgId, date, mapOfIdToMd5, ScoreCardItem::getIndicatorId, ScoreCardItem::getOrgId, ScoreCardItem::getValue, indicators, IndicatorItem::getId, -1.0);
+		cacheChartsDataAsync(notificationDataSource, data, orgId, date, mapOfIdToMd5, ScoreCardItem::getIndicatorId, ScoreCardItem::getOrgId, ScoreCardItem::getValue, indicators, IndicatorItem::getId, -1.0);
 	}
 
 	@Async("asyncTaskExecutor")
@@ -379,9 +379,9 @@ public class CachingService {
 			}
 		}
 
-		cacheDataAsyncGeneric(notificationDataSource, flatBarComponentData, orgId, date, mapOfIdToMd5,
+		cacheChartsDataAsync(notificationDataSource, flatBarComponentData, orgId, date, mapOfIdToMd5,
 			item -> String.valueOf(item.chartId) + " " + String.valueOf(item.data.getBarChartItemId()) + " " + String.valueOf(item.data.getId()),
-			item -> orgId, // BarComponentData does not have getOrgId, using orgId
+			item -> orgId,
 			item -> item.data.getValue(),
 			fallbackItems,
 			item -> String.valueOf(item.chartId) + " " + String.valueOf(item.barChartItemId) + " " + String.valueOf(item.component.getId()),
@@ -415,8 +415,6 @@ public class CachingService {
 
 	@Async("asyncTaskExecutor")
 	public void cacheTabularData(String orgId, Date date, List<TabularItem> indicators,int count,String filterString) {
-		long startTime = System.nanoTime();
-
 		notificationDataSource = NotificationDataSource.getInstance();
 		LinkedHashMap<Integer, String> mapOfIdToMd5 = new LinkedHashMap<>();
 		for (TabularItem item : indicators) {
@@ -427,7 +425,7 @@ public class CachingService {
 			.getTabularData(fhirClientProvider,orgId,new DateRange(date.toString(),date.toString()),indicators,Collections.emptyList())
 			.get(date.toLocalDate().toString());
 
-		cacheDataAsyncGeneric(notificationDataSource, scoreCardItems, orgId, date, mapOfIdToMd5, ScoreCardItem::getIndicatorId, ScoreCardItem::getOrgId, ScoreCardItem::getValue, indicators, TabularItem::getId, 0.0);
+		cacheChartsDataAsync(notificationDataSource, scoreCardItems, orgId, date, mapOfIdToMd5, ScoreCardItem::getIndicatorId, ScoreCardItem::getOrgId, ScoreCardItem::getValue, indicators, TabularItem::getId, 0.0);
 	}
 
 	@Async("asyncTaskExecutor")
@@ -461,7 +459,7 @@ public class CachingService {
 			}
 		}
 
-		cacheDataAsyncGeneric(notificationDataSource, flatPieChartItems, orgId, date, mapOfIdToMd5,
+		cacheChartsDataAsync(notificationDataSource, flatPieChartItems, orgId, date, mapOfIdToMd5,
 			item -> String.valueOf(item.item.getId()) + item.categoryId,
 			item -> item.item.getOrgId(),
 			item -> item.item.getValue(),
@@ -525,9 +523,9 @@ public class CachingService {
 			}
 		}
 
-		cacheDataAsyncGeneric(notificationDataSource, flatLineChartItems, orgId, date, mapOfIdToMd5,
+		cacheChartsDataAsync(notificationDataSource, flatLineChartItems, orgId, date, mapOfIdToMd5,
 			item -> String.valueOf(item.chartId) + " " + String.valueOf(item.item.getLineId()),
-			item -> orgId, // LineChartItem does not have getOrgId, using orgId
+			item -> orgId,
 			item -> item.item.getValue(),
 			fallbackItems,
 			item -> String.valueOf(item.chartId) + " " + String.valueOf(item.definition.getId()),
