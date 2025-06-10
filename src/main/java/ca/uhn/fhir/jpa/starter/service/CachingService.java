@@ -50,7 +50,7 @@ public class CachingService {
 	private static final long DELAY = 3600000;
 
 
-	private <T, U, K> void cacheChartsData(
+	private <T, U, K> void processCacheEntities(
 		NotificationDataSource notificationDataSource,
 		List<T> items,
 		String orgId,
@@ -110,6 +110,22 @@ public class CachingService {
 		notificationDataSource.updateObjects(cacheEntitiesForUpdate);
 	}
 
+	private <T, U, K> void cacheChartsData(
+		NotificationDataSource notificationDataSource,
+		List<T> items,
+		String orgId,
+		Date date,
+		LinkedHashMap<K, String> mapOfIdToMd5,
+		Function<T, K> idExtractor,
+		Function<T, String> orgIdExtractor,
+		Function<T, String> valueExtractor,
+		List<U> fallbackItems,
+		Function<U, K> fallbackIdExtractor,
+		double fallbackValue
+	) {
+		processCacheEntities(notificationDataSource, items, orgId, date, mapOfIdToMd5, idExtractor, orgIdExtractor, valueExtractor, fallbackItems, fallbackIdExtractor, fallbackValue);
+	}
+
 	@Async("asyncTaskExecutor")
 	private <T, U, K> void cacheChartsDataAsync(
 		NotificationDataSource notificationDataSource,
@@ -123,53 +139,9 @@ public class CachingService {
 		List<U> fallbackItems,
 		Function<U, K> fallbackIdExtractor,
 		double fallbackValue
-	){
-		ArrayList<CacheEntity> cacheEntitiesForInsert = new ArrayList<>();
-		ArrayList<CacheEntity> cacheEntitiesForUpdate = new ArrayList<>();
-
-		if (items != null) {
-			for (T item : items) {
-				OperationHelper.doWithRetry(MAX_RETRY, new Operation() {
-					@Override
-					public void doIt() {
-						List<CacheEntity> cacheEntities = notificationDataSource.getCacheByDateIndicatorAndOrgId(date, mapOfIdToMd5.get(idExtractor.apply(item)), orgIdExtractor.apply(item));
-						if (cacheEntities.isEmpty()) {
-							CacheEntity cacheEntity = new CacheEntity(
-								orgIdExtractor.apply(item),
-								mapOfIdToMd5.get(idExtractor.apply(item)),
-								date,
-								Double.valueOf(valueExtractor.apply(item)),
-								Date.valueOf(LocalDate.now())
-							);
-							cacheEntitiesForInsert.add(cacheEntity);
-						} else {
-							CacheEntity cacheEntity = cacheEntities.get(0);
-							cacheEntity.setValue(Double.valueOf(valueExtractor.apply(item)));
-							cacheEntitiesForUpdate.add(cacheEntity);
-						}
-					}
-				});
-			}
-		} else {
-			for (U item : fallbackItems) {
-				List<CacheEntity> cacheEntities = notificationDataSource.getCacheByDateIndicatorAndOrgId(
-					date, mapOfIdToMd5.get(fallbackIdExtractor.apply(item)), orgId);
-				if (cacheEntities.isEmpty()) {
-					CacheEntity cacheEntity = new CacheEntity(
-						orgId,
-						mapOfIdToMd5.get(fallbackIdExtractor.apply(item)),
-						date,
-						fallbackValue,
-						Date.valueOf(LocalDate.now())
-					);
-					cacheEntitiesForInsert.add(cacheEntity);
-				}
-			}
-		}
-		notificationDataSource.insertObjects(cacheEntitiesForInsert);
-		notificationDataSource.updateObjects(cacheEntitiesForUpdate);
+	) {
+		processCacheEntities(notificationDataSource, items, orgId, date, mapOfIdToMd5, idExtractor, orgIdExtractor, valueExtractor, fallbackItems, fallbackIdExtractor, fallbackValue);
 	}
-
 
 	public void cacheData(String orgId, Date startDate, List<IndicatorItem>indicators, int count, Map<String, List<ScoreCardItem>> map, String filterString) {
 		notificationDataSource = NotificationDataSource.getInstance();
