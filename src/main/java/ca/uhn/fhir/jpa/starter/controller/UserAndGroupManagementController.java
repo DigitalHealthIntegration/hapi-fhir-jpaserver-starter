@@ -37,6 +37,7 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.PostConstruct;
@@ -181,5 +182,29 @@ public class UserAndGroupManagementController {
 	@DeleteMapping("/deleteEmail/{recipientEmail}")
 	public ResponseEntity<LinkedHashMap<String, Object>> deleteEmailScheduleByEmail(@PathVariable String recipientEmail) {
 		return helperService.deleteEmailScheduleByEmailAddress(recipientEmail);
+	}
+
+	@GetMapping("/hierarchy/byPractitionerRole")
+	public ResponseEntity<List<Map<String, Object>>> getHierarchyByPractitionerRole(@RequestParam String practitionerRoleId) {
+		List<Map<String, Object>> hierarchy = helperService.getHierarchyByPractitionerRoleId(practitionerRoleId);
+		return ResponseEntity.ok(hierarchy);
+	}
+
+	@GetMapping("/mobile-users")
+	public List<Map<String, Object>> getMobileUsersByAdminOrg(@RequestParam("adminOrg") String adminOrgId) {
+		// Process hierarchy and fetch mobile users
+		return helperService.getMobileUsersFromOrgId(adminOrgId);
+	}
+
+	@GetMapping("/web-users")
+	public List<Map<String, Object>> getWebUsersByAdminOrg(@RequestParam("adminOrg") String adminOrgId) {
+		return helperService.getWebUsersFromOrgId(adminOrgId);
+	}
+
+	@PostMapping("/reset-password")
+	public ResponseEntity<LinkedHashMap<String, Object>> resetUserPassword(
+			@RequestParam("username") String username,
+			@RequestParam("newPassword") String newPassword) {
+		return helperService.resetUserPasswordByUsername(username, newPassword);
 	}
 }

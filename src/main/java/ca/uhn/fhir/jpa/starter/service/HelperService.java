@@ -25,6 +25,7 @@ import ca.uhn.fhir.jpa.starter.model.ScoreCardResponseItem;
 import ca.uhn.fhir.jpa.starter.model.BulkUploadEmailScheduleDetails;
 import ca.uhn.fhir.jpa.starter.model.EmailScheduleEntity;
 import ca.uhn.fhir.rest.api.MethodOutcome;
+import ca.uhn.fhir.rest.client.api.IGenericClient;
 import ca.uhn.fhir.rest.client.impl.GenericClient;
 import ca.uhn.fhir.rest.gclient.ICriterion;
 import ca.uhn.fhir.rest.gclient.IQuery;
@@ -101,6 +102,8 @@ import org.hl7.fhir.r4.model.Coding;
 import org.keycloak.admin.client.CreatedResponseUtil;
 import org.keycloak.admin.client.resource.GroupResource;
 import org.keycloak.admin.client.resource.RealmResource;
+import org.keycloak.admin.client.resource.UsersResource;
+import org.keycloak.representations.idm.CredentialRepresentation;
 import org.keycloak.representations.idm.GroupRepresentation;
 import org.keycloak.representations.idm.RoleRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
@@ -121,6 +124,7 @@ import org.springframework.web.multipart.MultipartFile;
 import javax.annotation.PostConstruct;
 import javax.persistence.PersistenceException;
 import javax.servlet.http.HttpServletRequest;
+import javax.ws.rs.NotFoundException;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response;
 import java.io.BufferedReader;
@@ -215,6 +219,7 @@ public class HelperService {
 	private static final String CODE_GOVT = "govt";
 	private static final List<String> VALID_ORG_TYPES = Arrays.asList("country", "state", "lga", "ward", "facility");
 	private static final List<String> FACILITY_SYNONYMS = Arrays.asList("prov", "provider", "clinic", "healthcare");
+	private static final String FACILITY_CODE_SYSTEM = "http://www.iprdgroup.com/Identifier/System/facilityCode";
 
 	@PostConstruct
 	public void init() {
@@ -671,6 +676,24 @@ public class HelperService {
 		return null;
 	}
 
+	private UserRepresentation getExistingKeycloakUser(String username) {
+		RealmResource realmResource = fhirClientAuthenticatorService.getKeycloak()
+			.realm(appProperties.getKeycloak_Client_Realm());
+		try {
+			List<UserRepresentation> users = realmResource.users().search(username, true);
+			if (users != null && !users.isEmpty()) {
+				for (UserRepresentation user : users) {
+					if (user.getUsername().equalsIgnoreCase(username)) {
+						return user;
+					}
+				}
+			}
+		} catch (Exception e) {
+			logger.warn(ExceptionUtils.getStackTrace(e));
+		}
+		return null;
+	}
+
 
 	private boolean updateOrganizationWithKeycloakGroupId(Organization organization, String keycloakGroupId, List<String> invalidClinics, String countryName) {
 		boolean identifierFound = false;
@@ -775,16 +798,22 @@ public class HelperService {
 			String argusoftIdentifier = userDetails.getArgusoftIdentifier();
 			String countryName = userDetails.getCountryName();
 
+			// Check if the user already exists in Keycloak
+			if (getExistingKeycloakUser(keycloakUserName) != null) {
+				invalidUsers.add("Username already present: " + keycloakUserName);
+				continue;
+			}
+
 			organizationId = getOrganizationIdByFacilityUID(facilityUID);
 
 			String s = firstName + "," + lastName + "," + state + "," + lga + "," + ward + "," + facilityUID;
 			if (facilityUID.isEmpty()) {
-				map.put("FacilityUid is empty", s);
+				invalidUsers.add("FacilityUID is empty for user: " + s);
 				continue;
 			}
 
 			if (!Validation.validationHcwCsvLine(hcwData)) {
-				map.put("CSV length validation failed", s);
+				invalidUsers.add("CSV length validation failed for user: " + s);
 				continue;
 			}
 
@@ -845,7 +874,7 @@ public class HelperService {
 							if (null != keycloakGroup && keycloakGroup.getAttributes().get("type").get(0).equals("state")) {
 								state = givenState;
 							} else {
-								map.put("State is not found", s);
+								invalidUsers.add("State not found for user: " + s);
 								continue outer;
 							}
 
@@ -855,7 +884,7 @@ public class HelperService {
 							if (null != keycloakGroup && keycloakGroup.getAttributes().get("type").get(0).equals("lga")) {
 								lga = givenLga;
 							} else {
-								map.put("Lga is not found", s);
+								invalidUsers.add("LGA not found for user: " + s);
 								continue outer;
 							}
 
@@ -865,7 +894,7 @@ public class HelperService {
 							if (null != keycloakGroup && keycloakGroup.getAttributes().get("type").get(0).equals("ward")) {
 								ward = givenWard;
 							} else {
-								map.put("Ward is not found", s);
+								invalidUsers.add("Ward not found for user: " + s);
 								continue outer;
 							}
 					}
@@ -899,7 +928,7 @@ public class HelperService {
 						argusoftIdentifier, countryName);
 					String keycloakUserId = createKeycloakUser(user);
 					if (keycloakUserId == null) {
-						map.put("User not created", s);
+						invalidUsers.add("User not created in Keycloak for: " + s);
 						continue;
 					}
 					// Create or update Keycloak role representation
@@ -943,7 +972,7 @@ public class HelperService {
 						argusoftIdentifier, countryName);
 					String keycloakUserId = createKeycloakUser(user);
 					if (keycloakUserId == null) {
-						map.put("User not created", s);
+						invalidUsers.add("User not created in Keycloak for: " + s);
 						continue;
 					}
 					// Create or update Keycloak role representation
@@ -960,7 +989,14 @@ public class HelperService {
 				}
 			}
 		}
-		map.put("UploadTaskStatus", "Completed");
+
+		// Check if the invalidUsers list has any issues.
+		if (!invalidUsers.isEmpty()) {
+			map.put("issues", invalidUsers);
+		} else {
+			map.put("UploadTaskStatus", "Completed");
+		}
+
 		return new ResponseEntity<LinkedHashMap<String, Object>>(map, HttpStatus.OK);
 	}
 
@@ -1005,6 +1041,11 @@ public class HelperService {
 			String organizationName = dashboardUserDetails.getOrganizationName();
 			String type = dashboardUserDetails.getType();
 
+			// Check if a user with the given userName already exists in Keycloak
+			if (getExistingKeycloakUser(userName) != null) {
+				invalidUsers.add("Username already exists: " + userName);
+				continue; // Skip to the next line in the CSV
+			}
 
 			if (organizationName.isEmpty()) {
 				map.put("Can not create user", firstName + " " + lastName + "," + organizationName);
@@ -1112,8 +1153,9 @@ public class HelperService {
 		}
 		if (invalidUsers.size() > 0) {
 			map.put("issues", invalidUsers);
+		} else {
+			map.put("taskStatus", "Completed");
 		}
-		map.put("taskStatus", "Completed");
 		return new ResponseEntity<LinkedHashMap<String, Object>>(map, HttpStatus.OK);
 	}
 
@@ -3642,6 +3684,412 @@ public class HelperService {
 		} catch (Exception e) {
 			logger.error("Failed to retrieve email schedules for adminOrg {}: {}", adminOrg, e.getMessage(), e);
 			return new ResponseEntity<>(Collections.emptyList(), HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
+
+	public List<Map<String, Object>> getHierarchyByPractitionerRoleId(String practitionerRoleId) {
+		if (practitionerRoleId == null || practitionerRoleId.trim().isEmpty()) {
+			logger.warn("PractitionerRoleId is null or empty");
+			return new ArrayList<>();
+		}
+
+		String orgId = getOrganizationIdByPractitionerRoleId(practitionerRoleId);
+		if (orgId == null) {
+			logger.warn("No organization ID found for practitionerRoleId: {}", practitionerRoleId);
+			return new ArrayList<>();
+		}
+
+		List<OrgItem> orgHierarchy = getOrganizationHierarchy(orgId);
+		if (orgHierarchy == null || orgHierarchy.isEmpty()) {
+			logger.warn("No hierarchy found for organization ID: {}", orgId);
+			return new ArrayList<>();
+		}
+
+		return convertOrgItemToMap(orgHierarchy);
+	}
+
+	private List<Map<String, Object>> convertOrgItemToMap(List<OrgItem> orgItems) {
+		List<Map<String, Object>> result = new ArrayList<>();
+		if (orgItems == null) {
+			return result;
+		}
+
+		for (OrgItem item : orgItems) {
+			Map<String, Object> map = new HashMap<>();
+			map.put("id", item.getId());
+			map.put("name", item.getName());
+			map.put("type", item.getType());
+			map.put("parentId", item.getParentId());
+			map.put("logo", item.getLogo());
+			map.put("children", convertOrgItemToMap(item.getChildren()));
+			result.add(map);
+		}
+		return result;
+	}
+
+	// Find all facilities in the hierarchy with recursive logging
+	private List<OrgItem> findFacilitiesInHierarchy(List<OrgItem> hierarchy) {
+		List<OrgItem> facilities = new ArrayList<>();
+		if (hierarchy == null) {
+			logger.warn("Hierarchy is null");
+			return facilities;
+		}
+		for (OrgItem item : hierarchy) {
+			if (item == null) continue;
+			if (item.getType() == OrgType.FACILITY) {
+				facilities.add(item);
+				logger.debug("Found facility: {} (ID: {})", item.getName(), item.getId());
+			}
+			facilities.addAll(findFacilitiesInHierarchy(item.getChildren()));
+		}
+		return facilities;
+	}
+
+	// Fetch Organization resource by ID with detailed logging
+	private Organization fetchOrganizationById(String id, IGenericClient fhirClient) {
+		if (id == null || id.trim().isEmpty()) {
+			logger.warn("Facility ID is null or empty");
+			return null;
+		}
+		try {
+			Organization org = fhirClient.read()
+				.resource(Organization.class)
+				.withId(id)
+				.execute();
+			logger.debug("Fetched Organization for ID {}: {}", id, org != null ? org.getName() : "null");
+			return org;
+		} catch (Exception e) {
+			logger.warn("Error fetching Organization for ID {}: {}", id, ExceptionUtils.getStackTrace(e));
+			return null;
+		}
+	}
+
+	// Extract facility code from Organization resource with validation
+	private String extractFacilityCode(Organization org) {
+		if (org == null || org.getIdentifier().isEmpty()) {
+			logger.warn("Organization or identifiers are null/empty for org: {}", org != null ? org.getId() : "null");
+			return null;
+		}
+		String code = org.getIdentifier().stream()
+			.filter(id -> FACILITY_CODE_SYSTEM.equals(id.getSystem()))
+			.findFirst()
+			.map(id -> {
+				logger.debug("Found facility code: {}", id.getValue());
+				return id.getValue();
+			})
+			.orElse(null);
+		if (code == null) {
+			logger.warn("No facility code found for org ID: {}", org.getId());
+		}
+		return code;
+	}
+
+	// Get group ID by group name with enhanced logging
+	private String getGroupIdByName(String groupName, RealmResource realmResource) {
+		if (groupName == null || groupName.trim().isEmpty()) {
+			logger.warn("Group name is null or empty");
+			return null;
+		}
+		try {
+			List<GroupRepresentation> groups = realmResource.groups().groups(groupName, true, 0, 1, false);
+			return groups.stream()
+				.filter(g -> g != null && g.getName().equals(groupName))
+				.findFirst()
+				.map(g -> {
+					logger.debug("Found group ID {} for name {}", g.getId(), groupName);
+					return g.getId();
+				})
+				.orElseGet(() -> {
+					logger.warn("No group found for name {}", groupName);
+					return null;
+				});
+		} catch (Exception e) {
+			logger.warn("Error fetching group ID for name {}: {}", groupName, ExceptionUtils.getStackTrace(e));
+			return null;
+		}
+	}
+
+	// Get users from facility based on user type (for mobile users)
+	private List<Map<String, Object>> getFacilityUsersByType(String organizationId, String userType) {
+		List<Map<String, Object>> users = new ArrayList<>();
+		IGenericClient fhirClient = fhirClientAuthenticatorService.getFhirClient();
+		RealmResource realmResource = fhirClientAuthenticatorService.getKeycloak()
+			.realm(appProperties.getKeycloak_Client_Realm());
+		UsersResource usersResource = realmResource.users();
+
+		if (organizationId == null || organizationId.trim().isEmpty()) {
+			logger.error("Organization ID is null or empty");
+			return users;
+		}
+		if (userType == null || userType.trim().isEmpty()) {
+			logger.warn("User type is null or empty, defaulting to no filtering");
+			return users;
+		}
+
+		try {
+			List<OrgItem> hierarchy = fetchOrgHierarchy(organizationId);
+			if (hierarchy.isEmpty()) {
+				logger.warn("No hierarchy data for organization ID {}", organizationId);
+				return users;
+			}
+
+			List<OrgItem> facilities = findFacilitiesInHierarchy(hierarchy);
+			if (facilities.isEmpty()) {
+				logger.warn("No facilities found in hierarchy for organization ID {}", organizationId);
+				return users;
+			}
+
+			for (OrgItem facility : facilities) {
+				String facilityId = facility.getId();
+				String facilityName = facility.getName();
+
+				Organization org = fetchOrganizationById(facilityId, fhirClient);
+				if (org == null) continue;
+
+				String facilityCode = extractFacilityCode(org);
+				if (facilityCode == null) continue;
+
+				String groupId = getGroupIdByName(facilityCode, realmResource);
+				if (groupId == null) continue;
+
+				List<UserRepresentation> allUsers = usersResource.list();
+				logger.debug("Total users fetched: {}", allUsers.size());
+				List<UserRepresentation> groupMembers = allUsers.stream()
+					.filter(user -> {
+						try {
+							return realmResource.groups().group(groupId).members().stream()
+								.anyMatch(member -> member.getId().equals(user.getId()));
+						} catch (NotFoundException e) {
+							logger.warn("Group {} not found during membership check", groupId);
+							return false;
+						}
+					})
+					.collect(Collectors.toList());
+
+				if (groupMembers.isEmpty()) {
+					continue;
+				}
+
+				groupMembers.stream()
+					.filter(user -> {
+						Map<String, List<String>> attributes = user.getAttributes();
+						boolean matches = attributes != null && attributes.get("user_type") != null &&
+							attributes.get("user_type").contains(userType);
+						if (!matches) {
+							logger.debug("User {} skipped, user_type does not match {}", user.getUsername(), userType);
+						}
+						return matches;
+					})
+					.forEach(user -> {
+						Map<String, Object> userMap = new HashMap<>();
+						userMap.put("id", user.getId());
+						userMap.put("username", user.getUsername());
+						userMap.put("lastName", user.getLastName());
+						userMap.put("firstName", user.getFirstName());
+						userMap.put("email", user.getEmail());
+						userMap.put("user_type", user.getAttributes().get("user_type"));
+						userMap.put("facility_id", facilityId);
+						userMap.put("facility_name", facilityName);
+						userMap.put("facility_code", facilityCode);
+						users.add(userMap);
+						logger.debug("Added user {} to results", user.getUsername());
+					});
+			}
+		} catch (Exception e) {
+			logger.error("Error fetching users for organization ID {}: {}", organizationId, ExceptionUtils.getStackTrace(e));
+		}
+
+		logger.info("Returning {} users for organization ID {} with user type {}", users.size(), organizationId, userType);
+		return users;
+	}
+
+	// Get users from organization level (state, LGA, ward) based on user type (for web users)
+	private List<Map<String, Object>> getOrgLevelUsersByType(String organizationId, String userType) {
+		List<Map<String, Object>> users = new ArrayList<>();
+		IGenericClient fhirClient = fhirClientAuthenticatorService.getFhirClient();
+		RealmResource realmResource = fhirClientAuthenticatorService.getKeycloak()
+			.realm(appProperties.getKeycloak_Client_Realm());
+		UsersResource usersResource = realmResource.users();
+
+		if (organizationId == null || organizationId.trim().isEmpty()) {
+			logger.error("Organization ID is null or empty");
+			return users;
+		}
+		if (userType == null || userType.trim().isEmpty()) {
+			logger.warn("User type is null or empty, defaulting to no filtering");
+			return users;
+		}
+
+		try {
+			// Fetch the organization to determine its type
+			Organization org = fetchOrganizationById(organizationId, fhirClient);
+			if (org == null) {
+				logger.warn("Organization not found for ID {}", organizationId);
+				return users;
+			}
+
+			String orgName = org.getName(); // Use name as group name for state, LGA, or ward
+			String groupId = getGroupIdByName(orgName, realmResource);
+			if (groupId == null) {
+				logger.warn("No group found for organization name {}", orgName);
+				return users;
+			}
+
+			List<UserRepresentation> allUsers = usersResource.list();
+			logger.debug("Total users fetched: {}", allUsers.size());
+			List<UserRepresentation> groupMembers = allUsers.stream()
+				.filter(user -> {
+					try {
+						return realmResource.groups().group(groupId).members().stream()
+							.anyMatch(member -> member.getId().equals(user.getId()));
+					} catch (NotFoundException e) {
+						logger.warn("Group {} not found during membership check", groupId);
+						return false;
+					}
+				})
+				.collect(Collectors.toList());
+
+			if (groupMembers.isEmpty()) {
+				logger.warn("No members found in group {} for organization {}", groupId, orgName);
+				return users;
+			}
+
+			groupMembers.stream()
+				.filter(user -> {
+					Map<String, List<String>> attributes = user.getAttributes();
+					boolean matches = attributes != null && attributes.get("user_type") != null &&
+						attributes.get("user_type").contains(userType);
+					if (!matches) {
+						logger.debug("User {} skipped, user_type does not match {}", user.getUsername(), userType);
+					}
+					return matches;
+				})
+				.forEach(user -> {
+					Map<String, Object> userMap = new HashMap<>();
+					userMap.put("id", user.getId());
+					userMap.put("username", user.getUsername());
+					userMap.put("lastName", user.getLastName());
+					userMap.put("firstName", user.getFirstName());
+					userMap.put("email", user.getEmail());
+					userMap.put("user_type", user.getAttributes().get("user_type"));
+					userMap.put("organization_id", organizationId);
+					userMap.put("organization_name", orgName);
+					users.add(userMap);
+					logger.debug("Added user {} to results", user.getUsername());
+				});
+		} catch (Exception e) {
+			logger.error("Error fetching users for organization ID {}: {}", organizationId, ExceptionUtils.getStackTrace(e));
+		}
+
+		logger.info("Returning {} users for organization ID {} with user type {}", users.size(), organizationId, userType);
+		return users;
+	}
+
+	// Specific method for mobile users (facility-specific)
+	public List<Map<String, Object>> getMobileUsersFromOrgId(String organizationId) {
+		return getFacilityUsersByType(organizationId, "mobile");
+	}
+
+	// Specific method for web (dashboard) users (organization-level)
+	public List<Map<String, Object>> getWebUsersFromOrgId(String organizationId) {
+		return getOrgLevelUsersByType(organizationId, "web");
+	}
+
+	/**
+	 * Resets the password for a user identified by their username and returns a ResponseEntity.
+	 *
+	 * @param username The username of the user whose password needs to be reset
+	 * @param newPassword The new password to set
+	 * @return ResponseEntity containing the status and message
+	 */
+	public ResponseEntity<LinkedHashMap<String, Object>> resetUserPasswordByUsername(String username, String newPassword) {
+		LinkedHashMap<String, Object> response = new LinkedHashMap<>();
+		try {
+			if (username == null || username.trim().isEmpty()) {
+				logger.warn("Username is null or empty");
+				response.put("status", "error");
+				response.put("message", "Username is null or empty");
+				return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+			}
+			if (newPassword == null || newPassword.trim().isEmpty()) {
+				logger.warn("New password is null or empty");
+				response.put("status", "error");
+				response.put("message", "New password is null or empty");
+				return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+			}
+
+			// Get user ID by username
+			String userId = getUserIdByUsername(username);
+			if (userId == null) {
+				logger.warn("No user ID found for username: {}", username);
+				response.put("status", "error");
+				response.put("message", "No user found for username: " + username);
+				return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+			}
+
+			// Reset password using Keycloak
+			RealmResource realmResource = fhirClientAuthenticatorService.getKeycloak()
+					.realm(appProperties.getKeycloak_Client_Realm());
+
+			UserRepresentation user = realmResource.users().get(userId).toRepresentation();
+			if (user == null) {
+				logger.warn("User not found for ID: {}", userId);
+				response.put("status", "error");
+				response.put("message", "User not found for ID: " + userId);
+				return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+			}
+
+			// Create credential representation for new password
+			CredentialRepresentation credential = new CredentialRepresentation();
+			credential.setType(CredentialRepresentation.PASSWORD);
+			credential.setValue(newPassword);
+			credential.setTemporary(true);
+
+			// Reset password
+			realmResource.users().get(userId).resetPassword(credential);
+			logger.debug("Password reset successful for user: {} (ID: {})", username, userId);
+			response.put("status", "success");
+			response.put("message", "Password reset successfully for user: " + username);
+			return ResponseEntity.ok(response);
+		} catch (Exception e) {
+			logger.warn("Error resetting password for username {}: {}", username, ExceptionUtils.getStackTrace(e));
+			response.put("status", "error");
+			response.put("message", "Error resetting password: " + e.getMessage());
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+		}
+	}
+
+	/**
+	 * Retrieves the user ID for a given username from Keycloak.
+	 *
+	 * @param username The username to look up
+	 * @return The user ID if found, null otherwise
+	 */
+	private String getUserIdByUsername(String username) {
+		if (username == null || username.trim().isEmpty()) {
+			logger.warn("Username is null or empty in getUserIdByUsername");
+			return null;
+		}
+
+		try {
+			RealmResource realmResource = fhirClientAuthenticatorService.getKeycloak()
+					.realm(appProperties.getKeycloak_Client_Realm());
+
+			List<UserRepresentation> users = realmResource.users().search(username);
+			return users.stream()
+					.filter(u -> u != null && username.equals(u.getUsername()))
+					.findFirst()
+					.map(u -> {
+						logger.debug("Found user ID {} for username {}", u.getId(), username);
+						return u.getId();
+					})
+					.orElseGet(() -> {
+						logger.warn("No user found for username {}", username);
+						return null;
+					});
+		} catch (Exception e) {
+			logger.warn("Error fetching user ID for username {}: {}", username, ExceptionUtils.getStackTrace(e));
+			return null;
 		}
 	}
 
