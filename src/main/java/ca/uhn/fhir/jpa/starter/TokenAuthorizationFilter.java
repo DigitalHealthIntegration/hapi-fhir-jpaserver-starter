@@ -5,6 +5,10 @@ import com.iprd.fhir.utils.Validation;
 import org.hibernate.annotations.common.util.impl.LoggerFactory;
 import org.jboss.logging.Logger;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.User;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -13,6 +17,7 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.Collections;
 
 @Component
 public class TokenAuthorizationFilter extends OncePerRequestFilter {
@@ -55,6 +60,11 @@ public class TokenAuthorizationFilter extends OncePerRequestFilter {
 			response.getWriter().write("Access denied for the User");
 			return;
 		}
+
+		UserDetails userDetails = new User(userName, "", Collections.emptyList());
+		UsernamePasswordAuthenticationToken authentication =
+			new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+		SecurityContextHolder.getContext().setAuthentication(authentication);
 
 		filterChain.doFilter(request, response);
 	}
