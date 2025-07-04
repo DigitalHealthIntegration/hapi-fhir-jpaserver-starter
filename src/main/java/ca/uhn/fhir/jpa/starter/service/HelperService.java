@@ -688,8 +688,8 @@ public class HelperService {
 					}
 				}
 			}
-		} catch (Exception e) {
-			logger.warn(ExceptionUtils.getStackTrace(e));
+		} catch (NotFoundException e) {
+			logger.error("Keycloak resource not found for username: {}. Error: {}", username, e.getMessage());
 		}
 		return null;
 	}
@@ -760,7 +760,7 @@ public class HelperService {
 		throws Exception {
 		LinkedHashMap<String, Object> map = new LinkedHashMap<>();
 		List<String> practitioners = new ArrayList<>();
-		List<String> invalidUsers = new ArrayList<>();
+		List<String> failedRecords = new ArrayList<>();
 		BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(file.getInputStream(), "UTF-8"));
 		String singleLine;
 		int iteration = 0;
@@ -800,7 +800,7 @@ public class HelperService {
 
 			// Check if the user already exists in Keycloak
 			if (getExistingKeycloakUser(keycloakUserName) != null) {
-				invalidUsers.add("Username already present: " + keycloakUserName);
+				failedRecords.add("Username already present: " + keycloakUserName);
 				continue;
 			}
 
@@ -808,12 +808,12 @@ public class HelperService {
 
 			String s = firstName + "," + lastName + "," + state + "," + lga + "," + ward + "," + facilityUID;
 			if (facilityUID.isEmpty()) {
-				invalidUsers.add("FacilityUID is empty for user: " + s);
+				failedRecords.add("FacilityUID is empty for user: " + s);
 				continue;
 			}
 
 			if (!Validation.validationHcwCsvLine(hcwData)) {
-				invalidUsers.add("CSV length validation failed for user: " + s);
+				failedRecords.add("CSV length validation failed for user: " + s);
 				continue;
 			}
 
@@ -874,7 +874,7 @@ public class HelperService {
 							if (null != keycloakGroup && keycloakGroup.getAttributes().get("type").get(0).equals("state")) {
 								state = givenState;
 							} else {
-								invalidUsers.add("State not found for user: " + s);
+								failedRecords.add("State not found for user: " + s);
 								continue outer;
 							}
 
@@ -884,7 +884,7 @@ public class HelperService {
 							if (null != keycloakGroup && keycloakGroup.getAttributes().get("type").get(0).equals("lga")) {
 								lga = givenLga;
 							} else {
-								invalidUsers.add("LGA not found for user: " + s);
+								failedRecords.add("LGA not found for user: " + s);
 								continue outer;
 							}
 
@@ -894,7 +894,7 @@ public class HelperService {
 							if (null != keycloakGroup && keycloakGroup.getAttributes().get("type").get(0).equals("ward")) {
 								ward = givenWard;
 							} else {
-								invalidUsers.add("Ward not found for user: " + s);
+								failedRecords.add("Ward not found for user: " + s);
 								continue outer;
 							}
 					}
@@ -908,13 +908,13 @@ public class HelperService {
 					Practitioner.FAMILY.matchesExactly().value(lastName),
 					Practitioner.TELECOM.exactly().systemAndValues(ContactPoint.ContactPointSystem.PHONE.toCode(),
 						Arrays.asList(countryCode + phoneNumber)));
-				if (existingPractitionerResource != null ){
+				if (existingPractitionerResource != null) {
 					IBaseResource existingPractitionerRoleResource = fetchExistingFhirResource(PractitionerRole.class,
 						PractitionerRole.PRACTITIONER.hasId(ResourceType.Practitioner.name().concat("/") + existingPractitionerResource.getIdElement().getIdPart()));
 					String practitionerRoleIdToBeUpdated;
 					PractitionerRole newPractitionerRole = null;
 					// Check if PractitionerRole resource exists; otherwise create a new one
-					if (existingPractitionerRoleResource == null){
+					if (existingPractitionerRoleResource == null) {
 						newPractitionerRole = FhirResourceTemplateHelper.practitionerRole(role, qualification,
 							existingPractitionerResource.getIdElement().getIdPart(), organizationId);
 						practitionerRoleIdToBeUpdated = newPractitionerRole.getIdElement().getIdPart();
@@ -928,7 +928,7 @@ public class HelperService {
 						argusoftIdentifier, countryName);
 					String keycloakUserId = createKeycloakUser(user);
 					if (keycloakUserId == null) {
-						invalidUsers.add("User not created in Keycloak for: " + s);
+						failedRecords.add("User not created in Keycloak for: " + s);
 						continue;
 					}
 					// Create or update Keycloak role representation
@@ -937,7 +937,7 @@ public class HelperService {
 					if (existingPractitionerResource instanceof Practitioner) {
 						Boolean updatedPractitionerResource = updateKeycloakIdentifier(Practitioner.class, existingPractitionerResource, keycloakUserId);
 						if (!updatedPractitionerResource) {
-							invalidUsers.add(existingPractitionerResource.getClass().getSimpleName() + " resource update failed for user: " + s);
+							failedRecords.add(existingPractitionerResource.getClass().getSimpleName() + " resource update failed for user: " + s);
 							continue;
 						}
 					}
@@ -945,13 +945,13 @@ public class HelperService {
 					if (existingPractitionerRoleResource instanceof PractitionerRole) {
 						Boolean updatedPractitionerRoleResource = updateKeycloakIdentifier(PractitionerRole.class, existingPractitionerRoleResource, keycloakUserId);
 						if (!updatedPractitionerRoleResource) {
-							invalidUsers.add(existingPractitionerRoleResource.getClass().getSimpleName() + " resource update failed for user: " + s);
+							failedRecords.add(existingPractitionerRoleResource.getClass().getSimpleName() + " resource update failed for user: " + s);
 						}
 					} else if (newPractitionerRole != null) {
 						// If new PractitionerRole was created, handle its creation
 						practitionerRoleId = createResource(keycloakUserId, newPractitionerRole);
 						if (practitionerRoleId == null) {
-							invalidUsers.add("Resource creation failed for user: " + s);
+							failedRecords.add("Resource creation failed for user: " + s);
 						}
 					}
 				} else {
@@ -972,27 +972,27 @@ public class HelperService {
 						argusoftIdentifier, countryName);
 					String keycloakUserId = createKeycloakUser(user);
 					if (keycloakUserId == null) {
-						invalidUsers.add("User not created in Keycloak for: " + s);
+						failedRecords.add("User not created in Keycloak for: " + s);
 						continue;
 					}
 					// Create or update Keycloak role representation
 					createAndAssignKeycloakRole(role, keycloakUserId);
 					practitionerId = createResource(keycloakUserId, practitioner);
 					if (practitionerId == null) {
-						invalidUsers.add("Resource creation failed for user: " + s);
+						failedRecords.add("Resource creation failed for user: " + s);
 						continue;
 					}
 					practitionerRoleId = createResource(keycloakUserId, practitionerRole);
 					if (practitionerRoleId == null) {
-						invalidUsers.add("Resource creation failed for user: " + s);
+						failedRecords.add("Resource creation failed for user: " + s);
 					}
 				}
 			}
 		}
 
-		// Check if the invalidUsers list has any issues.
-		if (!invalidUsers.isEmpty()) {
-			map.put("issues", invalidUsers);
+
+		if (!failedRecords.isEmpty()) {
+			map.put("issues", failedRecords);
 		} else {
 			map.put("UploadTaskStatus", "Completed");
 		}
@@ -3800,11 +3800,11 @@ public class HelperService {
 					return g.getId();
 				})
 				.orElseGet(() -> {
-					logger.warn("No group found for name {}", groupName);
+					logger.error("No group found for name {}", groupName);
 					return null;
 				});
 		} catch (Exception e) {
-			logger.warn("Error fetching group ID for name {}: {}", groupName, ExceptionUtils.getStackTrace(e));
+			logger.error("Error fetching group ID for name {}: {}", groupName, ExceptionUtils.getStackTrace(e));
 			return null;
 		}
 	}
@@ -4029,7 +4029,7 @@ public class HelperService {
 
 			// Reset password using Keycloak
 			RealmResource realmResource = fhirClientAuthenticatorService.getKeycloak()
-					.realm(appProperties.getKeycloak_Client_Realm());
+				.realm(appProperties.getKeycloak_Client_Realm());
 
 			UserRepresentation user = realmResource.users().get(userId).toRepresentation();
 			if (user == null) {
@@ -4073,20 +4073,20 @@ public class HelperService {
 
 		try {
 			RealmResource realmResource = fhirClientAuthenticatorService.getKeycloak()
-					.realm(appProperties.getKeycloak_Client_Realm());
+				.realm(appProperties.getKeycloak_Client_Realm());
 
 			List<UserRepresentation> users = realmResource.users().search(username);
 			return users.stream()
-					.filter(u -> u != null && username.equals(u.getUsername()))
-					.findFirst()
-					.map(u -> {
-						logger.debug("Found user ID {} for username {}", u.getId(), username);
-						return u.getId();
-					})
-					.orElseGet(() -> {
-						logger.warn("No user found for username {}", username);
-						return null;
-					});
+				.filter(u -> u != null && username.equals(u.getUsername()))
+				.findFirst()
+				.map(u -> {
+					logger.debug("Found user ID {} for username {}", u.getId(), username);
+					return u.getId();
+				})
+				.orElseGet(() -> {
+					logger.warn("No user found for username {}", username);
+					return null;
+				});
 		} catch (Exception e) {
 			logger.warn("Error fetching user ID for username {}: {}", username, ExceptionUtils.getStackTrace(e));
 			return null;

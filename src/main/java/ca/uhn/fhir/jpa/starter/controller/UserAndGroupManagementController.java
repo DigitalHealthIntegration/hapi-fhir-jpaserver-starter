@@ -82,7 +82,7 @@ public class UserAndGroupManagementController {
 	public ResponseEntity<LinkedHashMap<String, Object>> bulkUploadDashboardUsers(@RequestParam("file") MultipartFile file) throws Exception {
 		return helperService.createDashboardUsers(file);
 	}
-	
+
 	@RequestMapping(method = RequestMethod.POST, value = "/organizationBulkImport")
 	public ResponseEntity<LinkedHashMap<String, Object>> bulkUploadClinicsAndStates(@RequestParam("file") MultipartFile file) throws IOException {
 		return helperService.createGroups(file);
@@ -110,16 +110,16 @@ public class UserAndGroupManagementController {
 //		return helperService.getAncMetaDataByOrganizationId(organizationId, startDate, endDate);
 //	}
 
-//	@RequestMapping(method = RequestMethod.GET, value = "/getAncDailySummaryData")
+	//	@RequestMapping(method = RequestMethod.GET, value = "/getAncDailySummaryData")
 //	public ResponseEntity<?> getAncDailySummaryData(@RequestParam("env") String env,@RequestParam("organizationId") String organizationId, @RequestParam("startDate") String startDate, @RequestParam("endDate") String endDate) {
 //		return helperService.getAncDailySummaryData(organizationId, startDate, endDate, new LinkedHashMap<>(),env);
 //	}
-		@RequestMapping(method = RequestMethod.GET, value = "/getOrganizations")
+	@RequestMapping(method = RequestMethod.GET, value = "/getOrganizations")
 	public ResponseEntity<List<OrgItem>> getOrganizations(@RequestParam("organizationId") String organizationId) {
 		List<OrgItem> orgItemsList = helperService.getOrganizationHierarchy(organizationId);
 		return ResponseEntity.ok(orgItemsList);
 	}
-	
+
 	@RequestMapping(method = RequestMethod.GET, value = "/refreshMapToOrgId")
 	public ResponseEntity<?> refreshMapToOrgId(
 		@RequestHeader(name = "Authorization") String token,
@@ -184,9 +184,9 @@ public class UserAndGroupManagementController {
 		return helperService.deleteEmailScheduleByEmailAddress(recipientEmail);
 	}
 
-	@GetMapping("/hierarchy/byPractitionerRole")
-	public ResponseEntity<List<Map<String, Object>>> getHierarchyByPractitionerRole(@RequestParam String practitionerRoleId) {
-		List<Map<String, Object>> hierarchy = helperService.getHierarchyByPractitionerRoleId(practitionerRoleId);
+	@GetMapping("/practitioner-roles/{roleId}/hierarchy")
+	public ResponseEntity<List<Map<String, Object>>> getHierarchyForRole(@PathVariable("roleId") String roleId) {
+		List<Map<String, Object>> hierarchy = helperService.getHierarchyByPractitionerRoleId(roleId);
 		return ResponseEntity.ok(hierarchy);
 	}
 
@@ -203,8 +203,8 @@ public class UserAndGroupManagementController {
 
 	@PostMapping("/reset-password")
 	public ResponseEntity<LinkedHashMap<String, Object>> resetUserPassword(
-			@RequestParam("username") String username,
-			@RequestParam("newPassword") String newPassword) {
+		@RequestParam("username") String username,
+		@RequestParam("newPassword") String newPassword) {
 		return helperService.resetUserPasswordByUsername(username, newPassword);
 	}
 }
