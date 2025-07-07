@@ -59,6 +59,7 @@ import org.springframework.http.ResponseEntity;
 import java.io.StringReader;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 import java.sql.Clob;
 import java.sql.Date;
@@ -105,6 +106,8 @@ import org.mockito.MockitoAnnotations;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
+import com.iprd.report.OrgItem;
+import com.iprd.report.OrgType;
 
 @ExtendWith(SpringExtension.class)
 @RunWith(PowerMockRunner.class)
@@ -752,7 +755,7 @@ class HelperServiceTest {
 //		assertEquals(ancDailySummaryConfig,capturedList);
 //		assertEquals(categoryWithHashCodes.get("patient-bio-data"),"e15b899b-8d94-4279-8cb7-3eb90a14279b2023-11-012024-01-04patient-bio-dataV2age-2");
 //	}
-  
+
 	@Test
 	void testGetCacheValueForDateRangeIndicatorAndMultipleOrgIdByReflection() throws NoSuchMethodException {
 		Date start = Date.valueOf(LocalDate.of(2024,01,05)); // replace with your desired start date
@@ -1178,7 +1181,7 @@ class HelperServiceTest {
 		parameters.put("env", "V2");
 		parameters.put("lga", "e15b899b-8d94-4279-8cb7-3eb90a14279b");
 		return parameters;
-}
+	}
 
 	private List<BarChartDefinition> getBarChartDefinitionList(){
 		FhirPathTransformation fhirPathTransformation = new FhirPathTransformation("Bundle.entry.resource.ofType(Immunization).where(vaccineCode.coding.code='ANC.B10.DE245').count()","","");
@@ -1209,4 +1212,43 @@ class HelperServiceTest {
 		return pieChartDefinition;
 	}
 
+
+
+	@Test
+	void testFindFacilitiesInHierarchy_withDetailedJsonData_Success() throws Exception {
+
+		OrgItem cityHealthHub = new OrgItem("8b37ee67-6702-434b-8005-e90e2ef94b8d", "City Health Hub", OrgType.FACILITY, "e7728af9-a5c3-40e8-8abd-505534e69b64", "city-health-hub", new ArrayList<>());
+		OrgItem vijayWellnessClinic = new OrgItem("909aa45b-9898-4b57-af43-5b5977f07148", "Vijay Wellness Clinic", OrgType.FACILITY, "594e636a-229c-423b-9247-48ce1179090b", "vijay-wellness-clinic", new ArrayList<>());
+		OrgItem urbanCareClinic = new OrgItem("f7b3129f-1d09-4ccd-a20f-3efda72283c1", "Urban Care Clinic", OrgType.FACILITY, "066f2924-6835-4363-82a4-c1691167dc5c", "urban-care-clinic", new ArrayList<>());
+
+		OrgItem whitefield = new OrgItem("e7728af9-a5c3-40e8-8abd-505534e69b64", "Whitefield", OrgType.WARD, "5fc25a72-5b81-48a8-ae8e-8d781963c9ad", "whitefield", new ArrayList<>(Collections.singletonList(cityHealthHub)));
+		OrgItem yelahanka = new OrgItem("594e636a-229c-423b-9247-48ce1179090b", "Yelahanka", OrgType.WARD, "5fc25a72-5b81-48a8-ae8e-8d781963c9ad", "yelahanka", new ArrayList<>(Collections.singletonList(vijayWellnessClinic)));
+		OrgItem koramangala = new OrgItem("066f2924-6835-4363-82a4-c1691167dc5c", "Koramangala", OrgType.WARD, "5fc25a72-5b81-48a8-ae8e-8d781963c9ad", "koramangala", new ArrayList<>(Collections.singletonList(urbanCareClinic)));
+
+		OrgItem bangaloreUrban = new OrgItem("5fc25a72-5b81-48a8-ae8e-8d781963c9ad", "Bangalore Urban", OrgType.LGA, "0f0428b1-ed9e-43b0-b556-0ff952ddd294", "bangalore-urban", new ArrayList<>(Arrays.asList(whitefield, yelahanka, koramangala)));
+		OrgItem karnataka = new OrgItem("0f0428b1-ed9e-43b0-b556-0ff952ddd294", "Karnataka", OrgType.STATE, null, "karnataka", new ArrayList<>(Collections.singletonList(bangaloreUrban)));
+		List<OrgItem> hierarchy = new ArrayList<>(Collections.singletonList(karnataka));
+
+		Method method = HelperService.class.getDeclaredMethod("findFacilitiesInHierarchy", List.class);
+		method.setAccessible(true);
+
+		@SuppressWarnings("unchecked")
+		List<OrgItem> result = (List<OrgItem>) method.invoke(helperService, hierarchy);
+
+		assertEquals("Should find exactly 3 facilities.", 3, result.size());
+		assertTrue(result.contains(cityHealthHub), "The list should contain City Health Hub.");
+		assertTrue(result.contains(vijayWellnessClinic), "The list should contain Vijay Wellness Clinic.");
+		assertTrue(result.contains(urbanCareClinic), "The list should contain Urban Care Clinic.");
+	}
+
+	@Test
+	void testFindFacilitiesInHierarchy_withKotlinDataClass_NullInput() throws Exception {
+		Method method = HelperService.class.getDeclaredMethod("findFacilitiesInHierarchy", List.class);
+		method.setAccessible(true);
+
+		@SuppressWarnings("unchecked")
+		List<OrgItem> result = (List<OrgItem>) method.invoke(helperService, (Object) null);
+
+		assertTrue(result.isEmpty(), "The result list should be empty when the input is null.");
+	}
 }
