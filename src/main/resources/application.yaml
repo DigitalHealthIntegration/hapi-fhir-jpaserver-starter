@@ -92,12 +92,8 @@ rabbitmq:
          name: email_routing_key
 
 report:
-   email: #receipients mail
    env: V2
-   cron: "0 0 10 ? * MON"
-   email-subject: "Weekly Facility Summary Report for {state} ({startDate} to {endDate})"
-   email-attachment-name: "Weekly_Facility_Summary_{state}_{startDate}_to_{endDate}.csv"
-   top-level-org-id: #top org ids
+   email-attachment-name: "Facility_Summary_{state}_{startDate}_to_{endDate}.csv"
 
 logging:
    level:
