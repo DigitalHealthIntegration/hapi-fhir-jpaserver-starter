@@ -18,22 +18,14 @@ import java.util.List;
 import java.util.UUID;
 
 public class FhirResourceTemplateHelper {
-	private static String CODE_JDN = "jdn";
-	private static String CODE_BU = "bu";
-	private static String DISPLAY_BUILDING = "building";
-	private static String DISPLAY_JURISDICTION = "Jurisdiction";
-	private static String SYSTEM_LOCATION_PHYSICAL_TYPE = "http://hl7.org/fhir/ValueSet/location-physical-type";
+
+
 	private static String CODE_CLINIC = "prov";
 	private static String DISPLAY_CLINIC = "Healthcare Provider";
-	private static String CODE_GOVT = "govt";
-	private static String DISPLAY_GOVERNMENT = "Government";
-	private static String SYSTEM_ORGANIZATION_PHYSICAL_TYPE = "	http://hl7.org/fhir/ValueSet/organization-type";
+
 	// todo - change the URLs below once resources are updated as per Implementation
 	// Guide
-	private static String SYSTEM_HCW = "https://www.iprdgroup.com/nigeria/oyo/ValueSet/Roles";
-	private static String IDENTIFIER_SYSTEM = "http://www.iprdgroup.com/Identifier/System";
-	private static String SYSTEM_ORG_TYPE = "https://www.iprdgroup.com/ValueSet/OrganizationType/tags";
-	private static String EXTENSION_PLUSCODE_URL = "http://iprdgroup.org/fhir/Extention/location-plus-code";
+
 
 	private static final Logger logger = LoggerFactory.getLogger(FhirResourceTemplateHelper.class);
 	 
@@ -49,10 +41,10 @@ public class FhirResourceTemplateHelper {
 		List<CodeableConcept> codeableConcepts = new ArrayList<>();
 		CodeableConcept countryPhysicalType = new CodeableConcept();
 		Coding physicalTypeCoding = new Coding();
-		physicalTypeCoding.setCode(CODE_GOVT).setDisplay(DISPLAY_GOVERNMENT)
-				.setSystem(SYSTEM_ORGANIZATION_PHYSICAL_TYPE);
+		physicalTypeCoding.setCode(FhirUtils.CODE_GOVT).setDisplay(FhirUtils.DISPLAY_GOVERNMENT)
+				.setSystem(FhirUtils.ORGANIZATION_TYPE_SYSTEM_NEW);
 		countryPhysicalType.addCoding(physicalTypeCoding);
-		countryPhysicalType.setText(DISPLAY_GOVERNMENT);
+		countryPhysicalType.setText(FhirUtils.DISPLAY_GOVERNMENT);
 		codeableConcepts.add(countryPhysicalType);
 		country.setType(codeableConcepts);
 		country.setName(name);
@@ -79,10 +71,10 @@ public class FhirResourceTemplateHelper {
 		state.setAddress(addresses);
 		CodeableConcept statePhysicalType = new CodeableConcept();
 		Coding physicalTypeCoding = new Coding();
-		physicalTypeCoding.setCode(CODE_GOVT).setDisplay(DISPLAY_GOVERNMENT)
-				.setSystem(SYSTEM_ORGANIZATION_PHYSICAL_TYPE);
+		physicalTypeCoding.setCode(FhirUtils.CODE_GOVT).setDisplay(FhirUtils.DISPLAY_GOVERNMENT)
+				.setSystem(FhirUtils.ORGANIZATION_TYPE_SYSTEM);
 		statePhysicalType.addCoding(physicalTypeCoding);
-		statePhysicalType.setText(DISPLAY_GOVERNMENT);
+		statePhysicalType.setText(FhirUtils.DISPLAY_GOVERNMENT);
 		codeableConcepts.add(statePhysicalType);
 		state.setType(codeableConcepts);
 		state.setName(name);
@@ -112,10 +104,10 @@ public class FhirResourceTemplateHelper {
 		lga.setAddress(addresses);
 		CodeableConcept lgaPhysicalType = new CodeableConcept();
 		Coding physicalTypeCoding = new Coding();
-		physicalTypeCoding.setCode(CODE_GOVT).setDisplay(DISPLAY_GOVERNMENT)
-				.setSystem(SYSTEM_ORGANIZATION_PHYSICAL_TYPE);
+		physicalTypeCoding.setCode(FhirUtils.CODE_GOVT).setDisplay(FhirUtils.DISPLAY_GOVERNMENT)
+				.setSystem(FhirUtils.ORGANIZATION_TYPE_SYSTEM_NEW);
 		lgaPhysicalType.addCoding(physicalTypeCoding);
-		lgaPhysicalType.setText(DISPLAY_GOVERNMENT);
+		lgaPhysicalType.setText(FhirUtils.DISPLAY_GOVERNMENT);
 		codeableConcepts.add(lgaPhysicalType);
 		lga.setType(codeableConcepts);
 		lga.setName(nameOfLga);
@@ -146,10 +138,10 @@ public class FhirResourceTemplateHelper {
 		ward.setAddress(addresses);
 		CodeableConcept wardPhysicalType = new CodeableConcept();
 		Coding physicalTypeCoding = new Coding();
-		physicalTypeCoding.setCode(CODE_GOVT).setDisplay(DISPLAY_GOVERNMENT)
-				.setSystem(SYSTEM_ORGANIZATION_PHYSICAL_TYPE);
+		physicalTypeCoding.setCode(FhirUtils.CODE_GOVT).setDisplay(FhirUtils.DISPLAY_GOVERNMENT)
+				.setSystem(FhirUtils.ORGANIZATION_TYPE_SYSTEM);
 		wardPhysicalType.addCoding(physicalTypeCoding);
-		wardPhysicalType.setText(DISPLAY_GOVERNMENT);
+		wardPhysicalType.setText(FhirUtils.DISPLAY_GOVERNMENT);
 		codeableConcepts.add(wardPhysicalType);
 		ward.setType(codeableConcepts);
 		ward.setName(city);
@@ -177,7 +169,7 @@ public class FhirResourceTemplateHelper {
 		Address facilityAddress = new Address();
 		CodeableConcept facilityPhysicalType = new CodeableConcept();
 		Coding physicalTypeCoding = new Coding();
-		physicalTypeCoding.setCode(CODE_BU).setDisplay(DISPLAY_BUILDING).setSystem(SYSTEM_LOCATION_PHYSICAL_TYPE);
+		physicalTypeCoding.setCode(FhirUtils.CODE_BU).setDisplay(FhirUtils.DISPLAY_BUILDING).setSystem(FhirUtils.LOCATION_PHYSICAL_TYPE_SYSTEM);
 		facilityPhysicalType.addCoding(physicalTypeCoding);
 		facilityAddress.setState(state);
 		facilityAddress.setCity(city);
@@ -197,7 +189,7 @@ public class FhirResourceTemplateHelper {
 			position.setLatitude(Double.parseDouble(latitude));
 			facility.setPosition(position);
 			Extension pluscodeExtension = new Extension();
-			pluscodeExtension.setUrl(EXTENSION_PLUSCODE_URL);
+			pluscodeExtension.setUrl(FhirUtils.EXTENSION_PLUSCODE_URL_NEW);
 			StringType pluscodeValue = new StringType(pluscode);
 			pluscodeExtension.setValue(pluscodeValue);
 			facility.addExtension(pluscodeExtension);
@@ -243,14 +235,14 @@ public class FhirResourceTemplateHelper {
 		Identifier argusoftIdentifier = new Identifier();
 		Identifier facilityLevelIdentifier = new Identifier();
 
-		facilityUIDIdentifier.setSystem(IDENTIFIER_SYSTEM + "/facilityCode");
+		facilityUIDIdentifier.setSystem(FhirUtils.IDENTIFIER_SYSTEM + "/facilityCode");
 		facilityUIDIdentifier.setValue(facilityCode);
-		facilityCodeIdentifier.setSystem(IDENTIFIER_SYSTEM + "/facilityUID");
+		facilityCodeIdentifier.setSystem(FhirUtils.IDENTIFIER_SYSTEM + "/facilityUID");
 		facilityCodeIdentifier.setValue(facilityUID);
-		argusoftIdentifier.setSystem(IDENTIFIER_SYSTEM + "/argusoft_identifier");
+		argusoftIdentifier.setSystem(FhirUtils.IDENTIFIER_SYSTEM + "/argusoft_identifier");
 		argusoftIdentifier.setValue(argusoftId);
 		
-		facilityLevelIdentifier.setSystem(IDENTIFIER_SYSTEM+"/facilityLevel");
+		facilityLevelIdentifier.setSystem(FhirUtils.IDENTIFIER_SYSTEM+"/facilityLevel");
 		facilityLevelIdentifier.setValue(facilityLevel);
 		
 		identifiers.add(facilityUIDIdentifier);
@@ -267,7 +259,7 @@ public class FhirResourceTemplateHelper {
 		CodeableConcept codeableConcept = new CodeableConcept();
 		Coding coding = new Coding();
 		coding.setCode(CODE_CLINIC);
-		coding.setSystem(SYSTEM_ORGANIZATION_PHYSICAL_TYPE);
+		coding.setSystem(FhirUtils.ORGANIZATION_TYPE_SYSTEM_NEW);
 		coding.setDisplay(DISPLAY_CLINIC);
 		codeableConcept.addCoding(coding);
 		codeableConcept.setText(DISPLAY_CLINIC);
@@ -306,12 +298,12 @@ public class FhirResourceTemplateHelper {
 		List<Identifier> identifiers = new ArrayList<>();
 		Identifier clinicIdentifier = new Identifier();
 		Identifier argusoftIdentifier = new Identifier();
-		clinicIdentifier.setSystem(IDENTIFIER_SYSTEM + "/facilityUID");
+		clinicIdentifier.setSystem(FhirUtils.IDENTIFIER_SYSTEM + "/facilityUID");
 		clinicIdentifier.setValue(facilityUID);
 		Identifier stateIdentifier = new Identifier();
-		stateIdentifier.setSystem(IDENTIFIER_SYSTEM + "/stateIdentifier");
+		stateIdentifier.setSystem(FhirUtils.IDENTIFIER_SYSTEM + "/stateIdentifier");
 		stateIdentifier.setValue(stateIdentifierString);
-		argusoftIdentifier.setSystem(IDENTIFIER_SYSTEM + "/argusoft_identifier");
+		argusoftIdentifier.setSystem(FhirUtils.IDENTIFIER_SYSTEM + "/argusoft_identifier");
 		argusoftIdentifier.setValue(argusoftId);
 		identifiers.add(clinicIdentifier);
 		identifiers.add(stateIdentifier);
@@ -342,7 +334,7 @@ public class FhirResourceTemplateHelper {
 		Coding coding = new Coding();
 		coding.setCode(qualification);
 		coding.setDisplay(qualification);
-		coding.setSystem(SYSTEM_HCW);
+		coding.setSystem(FhirUtils.SYSTEM_HCW);
 		codeableConcept.addCoding(coding);
 		List<PractitionerQualificationComponent> practitionerQualificationComponents = new ArrayList<>();
 		PractitionerQualificationComponent qualificationComponent = new PractitionerQualificationComponent();
@@ -364,7 +356,7 @@ public class FhirResourceTemplateHelper {
 		Practitioner practitioner = new Practitioner();
 		List<Identifier> identifiers = new ArrayList<>();
 		Identifier clinicIdentifier = new Identifier();
-		clinicIdentifier.setSystem(IDENTIFIER_SYSTEM + "/facilityUID");
+		clinicIdentifier.setSystem(FhirUtils.IDENTIFIER_SYSTEM + "/facilityUID");
 		clinicIdentifier.setSystem(facilityUID);
 		identifiers.add(clinicIdentifier);
 		practitioner.setIdentifier(identifiers);
@@ -409,7 +401,7 @@ public class FhirResourceTemplateHelper {
 		Coding coding2 = new Coding();
 		coding2.setCode(role);
 		coding2.setDisplay(qualification);
-		coding2.setSystem(SYSTEM_HCW);
+		coding2.setSystem(FhirUtils.SYSTEM_HCW);
 		roleCoding.addCoding(coding2);
 		codeableConcepts.add(roleCoding);
 		practitionerRole.setCode(codeableConcepts);
@@ -426,7 +418,7 @@ public class FhirResourceTemplateHelper {
 	public static Meta getMetaByOrgType(OrgType orgType) {
 		Meta meta = new Meta();
 		Coding coding = new Coding();
-		coding.setSystem(SYSTEM_ORG_TYPE);
+		coding.setSystem(FhirUtils.ORGANIZATION_TAG);
 		coding.setCode(orgType.getValue());
 		coding.setDisplay(orgType.name());
 		meta.addTag(coding);

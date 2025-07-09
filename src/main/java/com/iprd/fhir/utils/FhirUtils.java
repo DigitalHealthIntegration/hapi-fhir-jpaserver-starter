@@ -3,6 +3,7 @@ package com.iprd.fhir.utils;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -24,11 +25,72 @@ import autovalue.shaded.kotlin.Triple;
 import org.apache.jena.ext.xerces.util.URI.MalformedURIException;
 
 public class FhirUtils {
-	
+
+
+	public static String IDENTIFIER_SYSTEM_OCL = "http://iprdgroup.com/identifiers/ocl";
+	public static String IDENTIFIER_SYSTEM_OCL_NEW = "http://iprdsolutions.com/identifiers/patient-ocl";
+
+	public static String IDENTIFIER_SYSTEM_PATIENT_CARD = "http://iprdgroup.com/identifiers/patient-card";
+	public static String IDENTIFIER_SYSTEM_PATIENT_CARD_NEW = "http://iprdsolutions.com/identifiers/patient-health-card";
+	// DONE
+
+	public static String IDENTIFIER_SYSTEM_PATIENT_WITH_OCL = "http://iprdgroup.com/identifiers/patientWithOcl";
+	public static String IDENTIFIER_SYSTEM_PATIENT_WITH_OCL_NEW = "http://iprdsolutions.com/identifiers/patient-with-ocl";
+	//DONE
+
+	// HelperService
+	public static String EXTENSION_PLUSCODE_URL = "http://iprdgroup.org/fhir/Extention/location-plus-code";
+	public static String EXTENSION_PLUSCODE_URL_NEW = "http://iprdsolutions.com/fhir/uv/anc/StructureDefinition/location-pluscode";
+	// DONE
+
+	public static String IDENTIFIER_SYSTEM = "http://www.iprdgroup.com/Identifier/System";
+	// TODO:
+
+	public static final String ORGANIZATION_TYPE_SYSTEM = "http://hl7.org/fhir/ValueSet/organization-type";
+	public static final String ORGANIZATION_TYPE_SYSTEM_NEW = "http://terminology.hl7.org/CodeSystem/organization-type";
+	// DONE
+
+	public static final String FACILITY_CODE_SYSTEM = "http://www.iprdgroup.com/Identifier/System/facilityCode";
+	public static final String FACILITY_CODE_SYSTEM_NEW = "http://www.iprdsolutions.com/identifier/System/facility-code";
+	// DONE
+
+	public static final String ORGANIZATION_TAG = "https://www.iprdgroup.com/ValueSet/OrganizationType/tags";
+	public static final String ORGANIZATION_TAG_NEW = "https://iprdsolutions.com/ValueSet/OrganizationType/tags";
+
+	public static final String IDENTIFIER_SYSTEM_KEYCLOAK_ID = "http://www.iprdgroup.com/Identifier/System/KeycloakId";
+	public static final String IDENTIFIER_SYSTEM_KEYCLOAK_ID_NEW = "http://iprdsolutions.com/identifier/keycloak-id";
+
+	// FhirResourceTemplateHelper
+	public static String LOCATION_PHYSICAL_TYPE_SYSTEM = "http://hl7.org/fhir/ValueSet/location-physical-type";
+	public static String LOCATION_PHYSICAL_TYPE_SYSTEM_NEW = "http://hl7.org/fhir/R4/codesystem-location-physical-type";
+
+	public static String SYSTEM_HCW = "https://www.iprdgroup.com/nigeria/oyo/ValueSet/Roles";
+	public static String PRACTITIONER_ROLE_CODE_SYSTEM = "http://terminology.hl7.org/CodeSystem/practitioner-role";
+
+	public static final String CODE_CLINIC = "prov";
+	public static String CODE_GOVT = "govt";
+	public static String DISPLAY_GOVERNMENT = "Government";
+	public static String CODE_JDN = "jdn";
+	public static String CODE_BU = "bu";
+	public static String DISPLAY_BUILDING = "building";
+	public static String DISPLAY_JURISDICTION = "Jurisdiction";
+
+	public static final List<String> VALID_ORG_TYPES = Arrays.asList("country", "state", "lga", "ward", "facility");
+	public static final List<String> FACILITY_SYNONYMS = Arrays.asList("prov", "provider", "clinic", "healthcare");
+
+	// ServerInterceptor
+	public static final String ENCOUNTER_MIGRATED_SYSTEM = "https://iprdgroup.com/identifier";
+	public static final String ENCOUNTER_MIGRATED_SYSTEM_NEW = "https://iprdsolutions.com/identifier/encounter-migrated";
+
+
+
 	private static final Logger logger = LoggerFactory.getLogger(FhirUtils.class);
 	public static Boolean isOclPatient(List<Identifier> identifiers) {
 		for (Identifier identifier : identifiers) {
-			if (identifier.hasSystem() && identifier.getSystem().equals("http://iprdgroup.com/identifiers/patientWithOcl")) {
+			if (
+				identifier.hasSystem() && identifier.getSystem().equals(IDENTIFIER_SYSTEM_PATIENT_WITH_OCL) ||
+					identifier.hasSystem() && identifier.getSystem().equals(IDENTIFIER_SYSTEM_PATIENT_WITH_OCL_NEW)
+			) {
 				return true;
 			}
 		}
@@ -39,7 +101,10 @@ public class FhirUtils {
 		Triple<String, String, String> oclId = null;
 		String oclIdentifierValue = null;
 		for (Identifier identifier : identifiers) {
-			if (identifier.hasSystem() && identifier.getSystem().equals("http://iprdgroup.com/identifiers/ocl")) {
+			if (
+				identifier.hasSystem() && identifier.getSystem().equals(IDENTIFIER_SYSTEM_OCL) ||
+					identifier.hasSystem() && identifier.getSystem().equals(IDENTIFIER_SYSTEM_OCL_NEW)
+			) {
 				oclIdentifierValue = identifier.getValue();
 				break;
 			}
@@ -88,7 +153,10 @@ public class FhirUtils {
 
 	public static String getPatientCardNumber(List<Identifier> identifiers) {
 		for (Identifier identifier : identifiers) {
-			if (identifier.hasSystem() && identifier.getSystem().equals("http://iprdgroup.com/identifiers/patient-card")) {
+			if (
+				identifier.hasSystem() && identifier.getSystem().equals(IDENTIFIER_SYSTEM_PATIENT_CARD) ||
+					identifier.hasSystem() && identifier.getSystem().equals(IDENTIFIER_SYSTEM_PATIENT_CARD_NEW)
+			) {
 				return identifier.getValue();
 			}
 		}
@@ -97,7 +165,10 @@ public class FhirUtils {
 
 	public static String getOclLink(List<Identifier> identifiers) {
 		for (Identifier identifier : identifiers) {
-			if (identifier.hasSystem() && identifier.getSystem().equals("http://iprdgroup.com/identifiers/ocl")) {
+			if (
+				identifier.hasSystem() && identifier.getSystem().equals(IDENTIFIER_SYSTEM_OCL) ||
+					identifier.hasSystem() && identifier.getSystem().equals(IDENTIFIER_SYSTEM_OCL_NEW)
+			) {
 				return identifier.getValue();
 			}
 		}
@@ -184,7 +255,11 @@ public class FhirUtils {
 	    int index =0;
 	    // Add all identifiers in the new list to the set
 	    for (Identifier identifier : identifierNewList) {
-	    	if(identifier.getSystem().equals("http://iprdgroup.com/identifiers/ocl") || identifier.getSystem().equals("http://iprdgroup.com/identifiers/patient-card")) {
+	    	if(identifier.getSystem().equals(IDENTIFIER_SYSTEM_OCL) ||
+				identifier.getSystem().equals(IDENTIFIER_SYSTEM_OCL_NEW) ||
+				identifier.getSystem().equals(IDENTIFIER_SYSTEM_PATIENT_CARD) ||
+				identifier.getSystem().equals(IDENTIFIER_SYSTEM_PATIENT_CARD_NEW)
+			) {
 		        newIdentifiers.add(identifier.getValue());
 				  valueToIndex.put(identifier.getValue(),index);
 	    	}
@@ -193,7 +268,10 @@ public class FhirUtils {
 	    // Check if each identifier in the old list is present in the new list
 	    for (Identifier identifier : identifierOldList) {
 	        if (!newIdentifiers.contains(identifier.getValue())) {
-		    	if(identifier.getSystem().equals("http://iprdgroup.com/identifiers/ocl")|| identifier.getSystem().equals("http://iprdgroup.com/identifiers/patient-card")) {
+		    	if(identifier.getSystem().equals(IDENTIFIER_SYSTEM_OCL)||
+					identifier.getSystem().equals(IDENTIFIER_SYSTEM_OCL_NEW) ||
+					identifier.getSystem().equals(IDENTIFIER_SYSTEM_PATIENT_CARD) ||
+					identifier.getSystem().equals(IDENTIFIER_SYSTEM_PATIENT_CARD_NEW)) {
 		    		missingFromNew.add(identifier.getValue());
 		    	}
 	        }else {

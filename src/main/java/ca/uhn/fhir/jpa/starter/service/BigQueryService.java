@@ -8,6 +8,7 @@ import com.google.cloud.bigquery.*;
 import ca.uhn.fhir.jpa.starter.AppProperties;
 import ca.uhn.fhir.jpa.starter.AsyncConfiguration;
 
+import com.iprd.fhir.utils.FhirUtils;
 import com.iprd.fhir.utils.Operation;
 import com.iprd.fhir.utils.Utils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
@@ -33,7 +34,6 @@ import java.util.stream.Collectors;
 @Service
 public class BigQueryService {
 
-	private static final String KEYCLOAK_IDENTIFIER_SYSTEM = "http://www.iprdgroup.com/Identifier/System/KeycloakId";
 
 	private static final Logger logger = LoggerFactory.getLogger(BigQueryService.class);
 	
@@ -44,7 +44,7 @@ public class BigQueryService {
 
 	public List<AnalyticItem> timeSpentOnScreenAnalyticItems(Organization organization) {
 		List<AnalyticItem> timeAnalyticItems = new ArrayList<>();
-		Identifier keycloakIdentifier = organization.getIdentifier().stream().filter(identifier -> identifier.getSystem().equals(KEYCLOAK_IDENTIFIER_SYSTEM)).findFirst().orElse(null);
+		Identifier keycloakIdentifier = organization.getIdentifier().stream().filter(identifier -> identifier.getSystem().equals(FhirUtils.IDENTIFIER_SYSTEM_KEYCLOAK_ID)).findFirst().orElse(null);
 		if(keycloakIdentifier == null) {
 			return null;
 		}
