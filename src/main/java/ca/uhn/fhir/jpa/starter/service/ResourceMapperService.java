@@ -303,8 +303,8 @@ public class ResourceMapperService {
 	private String getOclIdFromIdentifier(List<Identifier> identifierList) {
 		for (Identifier identifier: identifierList) {
 			if (
-				identifier.hasSystem() && identifier.getSystem().equals(FhirUtils.IDENTIFIER_SYSTEM_OCL) ||
-					identifier.hasSystem() && identifier.getSystem().equals(FhirUtils.IDENTIFIER_SYSTEM_OCL_NEW)
+				identifier.hasSystem() && identifier.getSystem().equals(FhirUtils.IDENTIFIER_SYSTEM_OCL_OLD) ||
+					identifier.hasSystem() && identifier.getSystem().equals(FhirUtils.IDENTIFIER_SYSTEM_OCL)
 			) {
 				return identifier.getValue();
 			}

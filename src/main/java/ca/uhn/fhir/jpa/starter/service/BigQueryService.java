@@ -6,10 +6,8 @@ import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.bigquery.*;
 
 import ca.uhn.fhir.jpa.starter.AppProperties;
-import ca.uhn.fhir.jpa.starter.AsyncConfiguration;
 
 import com.iprd.fhir.utils.FhirUtils;
-import com.iprd.fhir.utils.Operation;
 import com.iprd.fhir.utils.Utils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.hl7.fhir.r4.model.Identifier;
@@ -47,8 +45,8 @@ public class BigQueryService {
 		Identifier keycloakIdentifier = organization.getIdentifier().
 			stream()
 			.filter(identifier ->
-					identifier.getSystem().equals(FhirUtils.IDENTIFIER_SYSTEM_KEYCLOAK_ID) ||
-						identifier.getSystem().equals(FhirUtils.IDENTIFIER_SYSTEM_KEYCLOAK_ID_NEW)
+					identifier.getSystem().equals(FhirUtils.IDENTIFIER_SYSTEM_KEYCLOAK_ID_OLD) ||
+						identifier.getSystem().equals(FhirUtils.IDENTIFIER_SYSTEM_KEYCLOAK_ID)
 			)
 			.findFirst()
 			.orElse(null);

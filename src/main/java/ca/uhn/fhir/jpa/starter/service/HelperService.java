@@ -688,8 +688,8 @@ public class HelperService {
 
 	private boolean updateOrganizationWithKeycloakGroupId(Organization organization, String keycloakGroupId, List<String> invalidClinics, String countryName) {
 		boolean identifierFound = false;
-		String identifierSystem = FhirUtils.IDENTIFIER_SYSTEM_KEYCLOAK_ID;
-		String identifierSystemUpdated = FhirUtils.IDENTIFIER_SYSTEM_KEYCLOAK_ID_NEW;
+		String identifierSystem = FhirUtils.IDENTIFIER_SYSTEM_KEYCLOAK_ID_OLD;
+		String identifierSystemUpdated = FhirUtils.IDENTIFIER_SYSTEM_KEYCLOAK_ID;
 
 		// Check if the identifier exists and update it
 		for (Identifier identifier : organization.getIdentifier()) {
@@ -719,8 +719,8 @@ public class HelperService {
 
 	private boolean updateLocationWithKeycloakGroupId(Location location, String keycloakGroupId, List<String> invalidClinics, String facilityName) {
 		boolean identifierFound = false;
-		String identifierSystem = FhirUtils.IDENTIFIER_SYSTEM_KEYCLOAK_ID;
-		String identifierSystemUpdated = FhirUtils.IDENTIFIER_SYSTEM_KEYCLOAK_ID_NEW;
+		String identifierSystem = FhirUtils.IDENTIFIER_SYSTEM_KEYCLOAK_ID_OLD;
+		String identifierSystemUpdated = FhirUtils.IDENTIFIER_SYSTEM_KEYCLOAK_ID;
 
 
 		// Check if the identifier exists and update it
@@ -1570,7 +1570,7 @@ public class HelperService {
 			if (org.hasMeta() && !org.getMeta().getTag().isEmpty()) {
 				for (Coding tag : org.getMeta().getTag()) {
 					if (
-						(FhirUtils.ORGANIZATION_TAG.equals(tag.getSystem()) || FhirUtils.ORGANIZATION_TAG_NEW.equals(tag.getSystem())) &&
+						(FhirUtils.ORGANIZATION_TAG_OLD.equals(tag.getSystem()) || FhirUtils.ORGANIZATION_TAG.equals(tag.getSystem())) &&
 							tag.hasCode()
 					) {
 						logger.debug("Found meta tag for org {}: system={}, code={}",
@@ -2972,12 +2972,12 @@ public class HelperService {
 					.exactly()
 					.codings(
 						new Coding(
-							FhirUtils.ORGANIZATION_TAG,
+							FhirUtils.ORGANIZATION_TAG_OLD,
 							type,
 							""
 						),
 						new Coding(
-							FhirUtils.ORGANIZATION_TAG_NEW,
+							FhirUtils.ORGANIZATION_TAG,
 							type,
 							""
 						)
@@ -3067,7 +3067,7 @@ public class HelperService {
 		try {
 			Method addIdentifier = resource.getClass().getMethod("addIdentifier");
 			Identifier obj = (Identifier) addIdentifier.invoke(resource);
-			obj.setSystem(FhirUtils.IDENTIFIER_SYSTEM + "/KeycloakId");
+			obj.setSystem(FhirUtils.IDENTIFIER_SYSTEM_KEYCLOAK_ID);
 			obj.setValue(keycloakId);
 			return updateResourceAndGetId(resource);
 		} catch (SecurityException | NoSuchMethodException | InvocationTargetException | IllegalAccessException e) {
@@ -3089,7 +3089,9 @@ public class HelperService {
 				Method getIdentifierMethod = resourceClass.getMethod("getIdentifier");
 				List<Identifier> identifiers = (List<Identifier>) getIdentifierMethod.invoke(castedResource);
 				for (Identifier identifier : identifiers) {
-					if (identifier.getSystem().equals(FhirUtils.IDENTIFIER_SYSTEM + "/KeycloakId") &&
+
+					if ((identifier.getSystem().equals(FhirUtils.IDENTIFIER_SYSTEM_KEYCLOAK_ID_OLD) ||
+						identifier.getSystem().equals(FhirUtils.IDENTIFIER_SYSTEM_KEYCLOAK_ID)) &&
 						!identifier.getValue().equals(keycloakUserId)) {
 						identifier.setValue(keycloakUserId);
 						String resourceId = updateResourceAndGetId(castedResource);
@@ -3149,7 +3151,7 @@ public class HelperService {
 			if (existingResource == null) {
 				Method addIdentifier = resource.getClass().getMethod("addIdentifier");
 				Identifier obj = (Identifier) addIdentifier.invoke(resource);
-				obj.setSystem(FhirUtils.IDENTIFIER_SYSTEM + "/KeycloakId");
+				obj.setSystem(FhirUtils.IDENTIFIER_SYSTEM_KEYCLOAK_ID);
 				obj.setValue(keycloakId);
 				MethodOutcome outcome = fhirClientAuthenticatorService.getFhirClient().update().resource(resource)
 					.execute();
@@ -3238,7 +3240,7 @@ public class HelperService {
 									&& !oldPosition.getLongitudeElement().equals(newPosition.getLongitudeElement()))) {
 									locationResource.setPosition(newPosition);
 									Extension pluscodeExtension = new Extension();
-									pluscodeExtension.setUrl(FhirUtils.EXTENSION_PLUSCODE_URL_NEW);
+									pluscodeExtension.setUrl(FhirUtils.EXTENSION_PLUSCODE_URL);
 									StringType pluscodeValue = new StringType(pluscode);
 									pluscodeExtension.setValue(pluscodeValue);
 									List<Extension> listOfExtension = locationResource.getExtension();
@@ -3260,7 +3262,7 @@ public class HelperService {
 								position.setLatitude(Double.parseDouble(latitude));
 								locationResource.setPosition(position);
 								Extension pluscodeExtension = new Extension();
-								pluscodeExtension.setUrl(FhirUtils.EXTENSION_PLUSCODE_URL_NEW);
+								pluscodeExtension.setUrl(FhirUtils.EXTENSION_PLUSCODE_URL);
 								StringType pluscodeValue = new StringType(pluscode);
 								pluscodeExtension.setValue(pluscodeValue);
 								locationResource.addExtension(pluscodeExtension);
@@ -3783,7 +3785,7 @@ public class HelperService {
 			return null;
 		}
 		String code = org.getIdentifier().stream()
-			.filter(id -> (FhirUtils.FACILITY_CODE_SYSTEM.equals(id.getSystem())) || (FhirUtils.FACILITY_CODE_SYSTEM_NEW.equals(id.getSystem())))
+			.filter(id -> (FhirUtils.FACILITY_CODE_SYSTEM_OLD.equals(id.getSystem())) || (FhirUtils.FACILITY_CODE_SYSTEM.equals(id.getSystem())))
 			.findFirst()
 			.map(id -> {
 				logger.debug("Found facility code: {}", id.getValue());

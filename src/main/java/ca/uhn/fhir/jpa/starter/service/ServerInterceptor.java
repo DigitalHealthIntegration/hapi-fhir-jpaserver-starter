@@ -246,8 +246,8 @@ public class ServerInterceptor {
 	private boolean isEncounterMigrated(Encounter encounter) {
 		for (Identifier identifier : encounter.getIdentifier()) {
 			if ((
-				identifier.hasSystem() && identifier.getSystem().equals(FhirUtils.ENCOUNTER_MIGRATED_SYSTEM) ||
-				identifier.hasSystem() && identifier.getSystem().equals(FhirUtils.ENCOUNTER_MIGRATED_SYSTEM_NEW)
+				identifier.hasSystem() && identifier.getSystem().equals(FhirUtils.ENCOUNTER_MIGRATED_SYSTEM_OLD) ||
+				identifier.hasSystem() && identifier.getSystem().equals(FhirUtils.ENCOUNTER_MIGRATED_SYSTEM)
 				)
 					&& identifier.hasValue() && identifier.getValue().equals(ENCOUNTER_MIGRATED_VALUE)) {
 				return true;
@@ -321,7 +321,7 @@ public class ServerInterceptor {
 			// If the use updates the temporary patient from the mobile, the identifier will
 			// be removed. So adding it back
 			Identifier oclPatientIdentifier = new Identifier()
-					.setSystem(FhirUtils.IDENTIFIER_SYSTEM_PATIENT_WITH_OCL_NEW).setValue("patient_with_ocl");
+					.setSystem(FhirUtils.IDENTIFIER_SYSTEM_PATIENT_WITH_OCL).setValue("patient_with_ocl");
 			updatedPatient.addIdentifier(oclPatientIdentifier);
 			// Returning form this block because for temporary patient no need to keep track
 			// of duplicate identifier.
