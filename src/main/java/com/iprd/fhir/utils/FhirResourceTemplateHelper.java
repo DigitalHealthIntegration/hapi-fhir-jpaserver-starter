@@ -169,7 +169,7 @@ public class FhirResourceTemplateHelper {
 		Address facilityAddress = new Address();
 		CodeableConcept facilityPhysicalType = new CodeableConcept();
 		Coding physicalTypeCoding = new Coding();
-		physicalTypeCoding.setCode(FhirUtils.CODE_BU).setDisplay(FhirUtils.DISPLAY_BUILDING).setSystem(FhirUtils.LOCATION_PHYSICAL_TYPE_SYSTEM);
+		physicalTypeCoding.setCode(FhirUtils.CODE_BU).setDisplay(FhirUtils.DISPLAY_BUILDING).setSystem(FhirUtils.LOCATION_PHYSICAL_TYPE_SYSTEM_NEW);
 		facilityPhysicalType.addCoding(physicalTypeCoding);
 		facilityAddress.setState(state);
 		facilityAddress.setCity(city);
@@ -334,7 +334,7 @@ public class FhirResourceTemplateHelper {
 		Coding coding = new Coding();
 		coding.setCode(qualification);
 		coding.setDisplay(qualification);
-		coding.setSystem(FhirUtils.SYSTEM_HCW);
+		coding.setSystem(FhirUtils.PRACTITIONER_ROLE_CODE_SYSTEM);
 		codeableConcept.addCoding(coding);
 		List<PractitionerQualificationComponent> practitionerQualificationComponents = new ArrayList<>();
 		PractitionerQualificationComponent qualificationComponent = new PractitionerQualificationComponent();
@@ -401,7 +401,7 @@ public class FhirResourceTemplateHelper {
 		Coding coding2 = new Coding();
 		coding2.setCode(role);
 		coding2.setDisplay(qualification);
-		coding2.setSystem(FhirUtils.SYSTEM_HCW);
+		coding2.setSystem(FhirUtils.PRACTITIONER_ROLE_CODE_SYSTEM);
 		roleCoding.addCoding(coding2);
 		codeableConcepts.add(roleCoding);
 		practitionerRole.setCode(codeableConcepts);
@@ -418,7 +418,7 @@ public class FhirResourceTemplateHelper {
 	public static Meta getMetaByOrgType(OrgType orgType) {
 		Meta meta = new Meta();
 		Coding coding = new Coding();
-		coding.setSystem(FhirUtils.ORGANIZATION_TAG);
+		coding.setSystem(FhirUtils.ORGANIZATION_TAG_NEW);
 		coding.setCode(orgType.getValue());
 		coding.setDisplay(orgType.name());
 		meta.addTag(coding);

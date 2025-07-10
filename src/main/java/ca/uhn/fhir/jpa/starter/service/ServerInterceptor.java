@@ -245,7 +245,10 @@ public class ServerInterceptor {
 
 	private boolean isEncounterMigrated(Encounter encounter) {
 		for (Identifier identifier : encounter.getIdentifier()) {
-			if (identifier.hasSystem() && identifier.getSystem().equals(FhirUtils.ENCOUNTER_MIGRATED_SYSTEM)
+			if ((
+				identifier.hasSystem() && identifier.getSystem().equals(FhirUtils.ENCOUNTER_MIGRATED_SYSTEM) ||
+				identifier.hasSystem() && identifier.getSystem().equals(FhirUtils.ENCOUNTER_MIGRATED_SYSTEM_NEW)
+				)
 					&& identifier.hasValue() && identifier.getValue().equals(ENCOUNTER_MIGRATED_VALUE)) {
 				return true;
 			}

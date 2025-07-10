@@ -32,30 +32,24 @@ public class FhirUtils {
 
 	public static String IDENTIFIER_SYSTEM_PATIENT_CARD = "http://iprdgroup.com/identifiers/patient-card";
 	public static String IDENTIFIER_SYSTEM_PATIENT_CARD_NEW = "http://iprdsolutions.com/identifiers/patient-health-card";
-	// DONE
 
 	public static String IDENTIFIER_SYSTEM_PATIENT_WITH_OCL = "http://iprdgroup.com/identifiers/patientWithOcl";
 	public static String IDENTIFIER_SYSTEM_PATIENT_WITH_OCL_NEW = "http://iprdsolutions.com/identifiers/patient-with-ocl";
-	//DONE
 
 	// HelperService
 	public static String EXTENSION_PLUSCODE_URL = "http://iprdgroup.org/fhir/Extention/location-plus-code";
 	public static String EXTENSION_PLUSCODE_URL_NEW = "http://iprdsolutions.com/fhir/uv/anc/StructureDefinition/location-pluscode";
-	// DONE
 
 	public static String IDENTIFIER_SYSTEM = "http://www.iprdgroup.com/Identifier/System";
-	// TODO:
 
 	public static final String ORGANIZATION_TYPE_SYSTEM = "http://hl7.org/fhir/ValueSet/organization-type";
 	public static final String ORGANIZATION_TYPE_SYSTEM_NEW = "http://terminology.hl7.org/CodeSystem/organization-type";
-	// DONE
 
 	public static final String FACILITY_CODE_SYSTEM = "http://www.iprdgroup.com/Identifier/System/facilityCode";
 	public static final String FACILITY_CODE_SYSTEM_NEW = "http://www.iprdsolutions.com/identifier/System/facility-code";
-	// DONE
 
 	public static final String ORGANIZATION_TAG = "https://www.iprdgroup.com/ValueSet/OrganizationType/tags";
-	public static final String ORGANIZATION_TAG_NEW = "https://iprdsolutions.com/ValueSet/OrganizationType/tags";
+	public static final String ORGANIZATION_TAG_NEW = "http://iprdsolutions.com/fhir/uv/anc/CodeSystem/iprd-organization-type-tags";
 
 	public static final String IDENTIFIER_SYSTEM_KEYCLOAK_ID = "http://www.iprdgroup.com/Identifier/System/KeycloakId";
 	public static final String IDENTIFIER_SYSTEM_KEYCLOAK_ID_NEW = "http://iprdsolutions.com/identifier/keycloak-id";

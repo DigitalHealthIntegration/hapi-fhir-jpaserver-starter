@@ -44,7 +44,15 @@ public class BigQueryService {
 
 	public List<AnalyticItem> timeSpentOnScreenAnalyticItems(Organization organization) {
 		List<AnalyticItem> timeAnalyticItems = new ArrayList<>();
-		Identifier keycloakIdentifier = organization.getIdentifier().stream().filter(identifier -> identifier.getSystem().equals(FhirUtils.IDENTIFIER_SYSTEM_KEYCLOAK_ID)).findFirst().orElse(null);
+		Identifier keycloakIdentifier = organization.getIdentifier().
+			stream()
+			.filter(identifier ->
+					identifier.getSystem().equals(FhirUtils.IDENTIFIER_SYSTEM_KEYCLOAK_ID) ||
+						identifier.getSystem().equals(FhirUtils.IDENTIFIER_SYSTEM_KEYCLOAK_ID_NEW)
+			)
+			.findFirst()
+			.orElse(null);
+
 		if(keycloakIdentifier == null) {
 			return null;
 		}

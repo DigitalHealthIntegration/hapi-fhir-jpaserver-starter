@@ -689,10 +689,11 @@ public class HelperService {
 	private boolean updateOrganizationWithKeycloakGroupId(Organization organization, String keycloakGroupId, List<String> invalidClinics, String countryName) {
 		boolean identifierFound = false;
 		String identifierSystem = FhirUtils.IDENTIFIER_SYSTEM_KEYCLOAK_ID;
+		String identifierSystemUpdated = FhirUtils.IDENTIFIER_SYSTEM_KEYCLOAK_ID_NEW;
 
 		// Check if the identifier exists and update it
 		for (Identifier identifier : organization.getIdentifier()) {
-			if (identifierSystem.equals(identifier.getSystem())) {
+			if (identifierSystem.equals(identifier.getSystem()) || identifierSystemUpdated.equals(identifier.getSystem())) {
 				identifier.setValue(keycloakGroupId);
 				identifierFound = true;
 				break;
@@ -718,11 +719,13 @@ public class HelperService {
 
 	private boolean updateLocationWithKeycloakGroupId(Location location, String keycloakGroupId, List<String> invalidClinics, String facilityName) {
 		boolean identifierFound = false;
-		String identifierSystem = FhirUtils.IDENTIFIER_SYSTEM_KEYCLOAK_ID; // Replace with your actual URL
+		String identifierSystem = FhirUtils.IDENTIFIER_SYSTEM_KEYCLOAK_ID;
+		String identifierSystemUpdated = FhirUtils.IDENTIFIER_SYSTEM_KEYCLOAK_ID_NEW;
+
 
 		// Check if the identifier exists and update it
 		for (Identifier identifier : location.getIdentifier()) {
-			if (identifierSystem.equals(identifier.getSystem())) {
+			if (identifierSystem.equals(identifier.getSystem()) || identifierSystemUpdated.equals(identifier.getSystem())) {
 				identifier.setValue(keycloakGroupId);
 				identifierFound = true;
 				break;
@@ -2961,13 +2964,27 @@ public class HelperService {
 	}
 
 	public String getOrganizationIdByOrganizationNameAndType(String name, String type) {
-
-		// TODO: NEW URL needs to be handled
 		Bundle organizationBundle = fhirClientAuthenticatorService.getFhirClient().search()
-			.forResource(Organization.class).where(Organization.NAME.matchesExactly().value(name))
-			.and(new TokenClientParam("_tag").exactly()
-				.systemAndCode(FhirUtils.ORGANIZATION_TAG, type))
-			.returnBundle(Bundle.class).execute();
+			.forResource(Organization.class)
+			.where(Organization.NAME.matchesExactly().value(name))
+			.and(
+				new TokenClientParam("_tag")
+					.exactly()
+					.codings(
+						new Coding(
+							FhirUtils.ORGANIZATION_TAG,
+							type,
+							""
+						),
+						new Coding(
+							FhirUtils.ORGANIZATION_TAG_NEW,
+							type,
+							""
+						)
+					)
+			).returnBundle(Bundle.class)
+			.execute();
+
 
 		if (organizationBundle.hasEntry() && organizationBundle.getEntry().size() > 0) {
 			return organizationBundle.getEntry().get(0).getResource().getIdElement().getIdPart();
