@@ -219,7 +219,7 @@ public class HelperService {
 	private static final String CODE_GOVT = "govt";
 	private static final List<String> VALID_ORG_TYPES = Arrays.asList("country", "state", "lga", "ward", "facility");
 	private static final List<String> FACILITY_SYNONYMS = Arrays.asList("prov", "provider", "clinic", "healthcare");
-	private static final String FACILITY_CODE_SYSTEM = "http://www.iprdgroup.com/Identifier/System/facilityCode";
+	private static final String FACILITY_CODE_SYSTEM = "http://www.iprdgroup.com/Identifier/System/facilityUID";
 
 	@PostConstruct
 	public void init() {
@@ -3307,22 +3307,27 @@ public class HelperService {
 	private String createKeycloakUser(UserRepresentation userRep) {
 		RealmResource realmResource = fhirClientAuthenticatorService.getKeycloak()
 			.realm(appProperties.getKeycloak_Client_Realm());
-		List<UserRepresentation> users = realmResource.users().search(userRep.getUsername(), 0, Integer.MAX_VALUE);
-		// if not empty, return id
-
-		for (UserRepresentation user : users) {
-			if (Objects.equals(user.getUsername(), userRep.getUsername())) {
-				return user.getId();
-			}
+		List<UserRepresentation> existingByUsername = realmResource.users().searchByUsername(userRep.getUsername(), true);
+		if (!existingByUsername.isEmpty()) {
+			logger.info("User with username '{}' already exists. Returning existing ID.", userRep.getUsername());
+			return existingByUsername.get(0).getId();
 		}
 		try {
 			Response response = realmResource.users().create(userRep);
-			return CreatedResponseUtil.getCreatedId(response);
-		} catch (WebApplicationException e) {
-			String errorMessage = "An error occurred while creating a Keycloak user.";
-			errorMessage += "\nUser: " + userRep.getUsername();
-			errorMessage += "\nError message: " + e.getMessage();
-			logger.warn(errorMessage, ExceptionUtils.getStackTrace(e));
+			if (response.getStatusInfo().getFamily() == Response.Status.Family.SUCCESSFUL) {
+				logger.info("Successfully created new Keycloak user '{}'.", userRep.getUsername());
+				return CreatedResponseUtil.getCreatedId(response);
+			} else {
+				String errorBody = response.readEntity(String.class);
+				logger.error("Keycloak user creation failed for '{}'. Status: {} {}. Response: {}",
+					userRep.getUsername(),
+					response.getStatus(),
+					response.getStatusInfo().getReasonPhrase(),
+					errorBody);
+				return null;
+			}
+		} catch (Exception e) {
+			logger.error("An exception occurred while creating Keycloak user '{}'.", userRep.getUsername(), e);
 			return null;
 		}
 	}
@@ -3765,7 +3770,7 @@ public class HelperService {
 	}
 
 	// Extract facility code from Organization resource with validation
-	private String extractFacilityCode(Organization org) {
+	private String extractFacilityUID(Organization org) {
 		if (org == null || org.getIdentifier().isEmpty()) {
 			logger.warn("Organization or identifiers are null/empty for org: {}", org != null ? org.getId() : "null");
 			return null;
@@ -3790,23 +3795,33 @@ public class HelperService {
 			logger.warn("Group name is null or empty");
 			return null;
 		}
+
+		int first = 0;
+		int pageSize = 100;
+
 		try {
-			List<GroupRepresentation> groups = realmResource.groups().groups(groupName, true, 0, 1, false);
-			return groups.stream()
-				.filter(g -> g != null && g.getName().equals(groupName))
-				.findFirst()
-				.map(g -> {
-					logger.debug("Found group ID {} for name {}", g.getId(), groupName);
-					return g.getId();
-				})
-				.orElseGet(() -> {
-					logger.error("No group found for name {}", groupName);
-					return null;
-				});
+			while (true) {
+				List<GroupRepresentation> groups = realmResource.groups().groups(groupName, first, pageSize);
+				if (groups.isEmpty()) {
+					break;
+				}
+				Optional<GroupRepresentation> matchedGroup = groups.stream()
+					.filter(group -> group != null && groupName.equals(group.getName()))
+					.findFirst();
+
+				if (matchedGroup.isPresent()) {
+					String groupId = matchedGroup.get().getId();
+					logger.debug("Found group ID '{}' for name '{}'", groupId, groupName);
+					return groupId;
+				}
+				first += pageSize;
+			}
 		} catch (Exception e) {
-			logger.error("Error fetching group ID for name {}: {}", groupName, ExceptionUtils.getStackTrace(e));
+			logger.error("Error fetching group ID for name '{}': {}", groupName, ExceptionUtils.getStackTrace(e));
 			return null;
 		}
+		logger.warn("No group found with exact case-sensitive match for name: '{}'", groupName);
+		return null;
 	}
 
 	// Get users from facility based on user type (for mobile users)
@@ -3846,10 +3861,10 @@ public class HelperService {
 				Organization org = fetchOrganizationById(facilityId, fhirClient);
 				if (org == null) continue;
 
-				String facilityCode = extractFacilityCode(org);
-				if (facilityCode == null) continue;
+				String facilityUID = extractFacilityUID(org);
+				if (facilityUID == null) continue;
 
-				String groupId = getGroupIdByName(facilityCode, realmResource);
+				String groupId = getGroupIdByName(facilityUID, realmResource);
 				if (groupId == null) continue;
 
 				List<UserRepresentation> allUsers = usersResource.list();
@@ -3890,7 +3905,6 @@ public class HelperService {
 						userMap.put("user_type", user.getAttributes().get("user_type"));
 						userMap.put("facility_id", facilityId);
 						userMap.put("facility_name", facilityName);
-						userMap.put("facility_code", facilityCode);
 						users.add(userMap);
 						logger.debug("Added user {} to results", user.getUsername());
 					});
@@ -4075,7 +4089,7 @@ public class HelperService {
 			RealmResource realmResource = fhirClientAuthenticatorService.getKeycloak()
 				.realm(appProperties.getKeycloak_Client_Realm());
 
-			List<UserRepresentation> users = realmResource.users().search(username);
+			List<UserRepresentation> users = realmResource.users().searchByUsername(username, true);
 			return users.stream()
 				.filter(u -> u != null && username.equals(u.getUsername()))
 				.findFirst()
