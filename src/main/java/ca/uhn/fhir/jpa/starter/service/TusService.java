@@ -46,12 +46,17 @@ public class TusService {
 		List<String> subDirectories = getSubDirectories(appProperties.getImage_path() + File.separator + "uploads");
 		for (String subDirectory : subDirectories) {
 			String uploadUrl = tusServerProperties.getContextPath() + "/" + subDirectory;
-			String fileType = fileStrategyContext.determineFileType(uploadUrl);
-			if (fileStrategyContext.isFileLocked(uploadUrl)) {
-				logger.warn("File is locked, skipping transfer for: " + uploadUrl);
-			}else{
-				logTUSUploadMetaData(uploadUrl);
-				transferToFinalStorage(uploadUrl, fileType);
+			try{
+				String fileType = fileStrategyContext.determineFileType(uploadUrl);
+				if (fileStrategyContext.isFileLocked(uploadUrl)) {
+					logger.warn("File is locked, skipping transfer for: " + uploadUrl);
+				}else{
+					logTUSUploadMetaData(uploadUrl);
+					transferToFinalStorage(uploadUrl, fileType);
+				}
+			} catch (Exception e) {
+				logger.info("Failed to upload file: " + uploadUrl);
+				logger.info(e.getMessage());
 			}
 		}
 	}
