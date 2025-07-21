@@ -36,7 +36,8 @@ public class TusService {
 			// Execute the transfer via the selected strategy
 			fileStrategyContext.executeStrategy(uploadUrl);
 		} catch (IllegalStateException e){
-			logger.info("Failed to execute strategy for upload: " + uploadUrl + e.getMessage());
+			logger.info("Failed to execute strategy for upload: " + uploadUrl);
+			logger.info(e.getMessage());
 		}
 	}
 
