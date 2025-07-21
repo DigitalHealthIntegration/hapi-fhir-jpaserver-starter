@@ -30,10 +30,15 @@ public class TusService {
 	}
 
 	public void transferToFinalStorage(String uploadUrl, String fileType) throws Exception {
-		// Set strategy based on file type
-		fileStrategyContext.setFileStrategy(fileType);
-		// Execute the transfer via the selected strategy
-		fileStrategyContext.executeStrategy(uploadUrl);
+		try{
+			// Set strategy based on file type
+			fileStrategyContext.setFileStrategy(fileType);
+			// Execute the transfer via the selected strategy
+			fileStrategyContext.executeStrategy(uploadUrl);
+		} catch (IllegalStateException e){
+			logger.info("Failed to execute strategy for upload: " + uploadUrl);
+			logger.info(e.getMessage());
+		}
 	}
 
 	@Scheduled(initialDelay = INITIAl_DELAY, fixedDelay = FIXED_DELAY)
