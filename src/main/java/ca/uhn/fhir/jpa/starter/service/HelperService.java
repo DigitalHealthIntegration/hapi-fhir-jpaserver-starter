@@ -811,7 +811,7 @@ public class HelperService {
 			if (existingUser != null) {
 				if (existingUser.getUsername().equalsIgnoreCase(keycloakUserName)) {
 					failedRecords.add("Username already present: " + keycloakUserName);
-				} else {
+				} else if (email != null && email.equalsIgnoreCase(existingUser.getEmail())) {
 					failedRecords.add("Email already present: " + email);
 				}
 				continue;
@@ -1059,7 +1059,7 @@ public class HelperService {
 			if (existingUser != null) {
 				if (existingUser.getUsername().equalsIgnoreCase(userName)) {
 					invalidUsers.add("Username already present: " + userName);
-				} else {
+				} else if (email != null && email.equalsIgnoreCase(existingUser.getEmail())) {
 					invalidUsers.add("Email already present: " + email);
 				}
 				continue;
@@ -3328,8 +3328,10 @@ public class HelperService {
 			String message;
 			if (existingUser.getUsername().equalsIgnoreCase(userRep.getUsername())) {
 				message = "User already present with same username: " + userRep.getUsername();
-			} else {
+			} else if (userRep.getEmail() != null && userRep.getEmail().equalsIgnoreCase(existingUser.getEmail())) {
 				message = "User already present with same email address: " + userRep.getEmail();
+			} else {
+				message = "User already exists with an unknown conflicting attribute.";
 			}
 			logger.warn(message);
 			return message;
@@ -3857,7 +3859,7 @@ public class HelperService {
 	private List<UserRepresentation> getUsersFromGroupFilteredByType(String groupId, String userType, RealmResource realmResource) {
 		List<UserRepresentation> groupMembers = realmResource.groups().group(groupId).members();
 		if (groupMembers == null || groupMembers.isEmpty()) {
-			return new ArrayList<>();
+			return Collections.emptyList();
 		}
 
 		return groupMembers.stream()
@@ -3880,8 +3882,13 @@ public class HelperService {
 		RealmResource realmResource = fhirClientAuthenticatorService.getKeycloak()
 			.realm(appProperties.getKeycloak_Client_Realm());
 
-		if (organizationId == null || organizationId.trim().isEmpty() || userType == null || userType.trim().isEmpty()) {
-			logger.error("Organization ID or user type is null or empty. OrgId: {}, UserType: {}", organizationId, userType);
+		if (organizationId == null || organizationId.trim().isEmpty()) {
+			logger.error("Validation failed: Organization ID is null or empty.");
+			return users;
+		}
+
+		if (userType == null || userType.trim().isEmpty()) {
+			logger.error("Validation failed: User type is null or empty for Organization ID: {}", organizationId);
 			return users;
 		}
 
@@ -3941,8 +3948,13 @@ public class HelperService {
 		RealmResource realmResource = fhirClientAuthenticatorService.getKeycloak()
 			.realm(appProperties.getKeycloak_Client_Realm());
 
-		if (organizationId == null || organizationId.trim().isEmpty() || userType == null || userType.trim().isEmpty()) {
-			logger.error("Organization ID or user type is null or empty. OrgId: {}, UserType: {}", organizationId, userType);
+		if (organizationId == null || organizationId.trim().isEmpty()) {
+			logger.error("Validation failed: Organization ID is null or empty.");
+			return users;
+		}
+
+		if (userType == null || userType.trim().isEmpty()) {
+			logger.error("Validation failed: User type is null or empty for Organization ID: {}", organizationId);
 			return users;
 		}
 
