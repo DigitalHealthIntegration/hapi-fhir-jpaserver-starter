@@ -51,9 +51,9 @@ public class LOFileStrategy implements FileStrategy {
 
 
 		// Create folder path and output file path
-		String folderName = fileName.substring(0, fileName.lastIndexOf('.')).replaceAll("[^a-zA-Z0-9]","_");
-		Path directoryPath = Paths.get(appProperties.getHyper_spectral_files_path(), folderName, "_");
-		Path outputPath = directoryPath.resolve(folderName);
+		String folderName = fileName.substring(0, fileName.lastIndexOf('.'));
+		Path directoryPath = Paths.get(appProperties.getHyper_spectral_files_path(), folderName);
+		Path outputPath = directoryPath.resolve(fileName);
 
 		// Ensure the directory exists
 		Files.createDirectories(directoryPath);
