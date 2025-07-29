@@ -1,9 +1,15 @@
 package ca.uhn.fhir.jpa.starter.service;
 
 import ca.uhn.fhir.jpa.starter.AppProperties;
+import com.amazonaws.auth.AWSStaticCredentialsProvider;
+import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
+import com.amazonaws.services.s3.model.PutObjectRequest;
+import com.amazonaws.services.s3.transfer.TransferManager;
+import com.amazonaws.services.s3.transfer.TransferManagerBuilder;
+import com.amazonaws.services.s3.transfer.Upload;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -80,13 +86,27 @@ public class S3UploadService {
 	private boolean uploadFile(String bucketName, String keyName, File file) {
 //		BasicAWSCredentials awsCredentials = new BasicAWSCredentials(accessKey, secretKey);
 
-		AmazonS3 s3Client = AmazonS3ClientBuilder.standard().withRegion(Regions.EU_NORTH_1).build();
+		AmazonS3 s3Client = AmazonS3ClientBuilder
+				.standard()
+				.withRegion(Regions.EU_NORTH_1)
+				.build();
+
+		TransferManager transferManager = TransferManagerBuilder.standard().withS3Client(s3Client).build();
 
 		try {
 			if (!s3Client.doesObjectExist(bucketName, keyName))
 			{
-				s3Client.putObject(bucketName, keyName, file);
-				logger.info("Successfully Uploaded File to S3: " + file.getName());
+				try {
+					PutObjectRequest putObjectRequest = new PutObjectRequest(bucketName, keyName, file);
+					Upload upload = transferManager.upload(putObjectRequest);
+					upload.waitForCompletion();
+
+					logger.info("Successfully Uploaded File to S3: " + file.getName());
+
+					transferManager.shutdownNow(); // Always shut it down when done
+				} catch (Exception e) {
+					logger.error("AmazonServiceException: " + e.getMessage(), e);
+				}
 			} else {
 				logger.info("File already exists in the S3: " + file.getName());
 			}
