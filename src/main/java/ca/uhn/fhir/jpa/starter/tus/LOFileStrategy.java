@@ -42,6 +42,13 @@ public class LOFileStrategy implements FileStrategy {
 		String fileName = new String(Base64.decodeBase64(dataList.get("filename")), Charsets.UTF_8);
 		String loCamLength = new String(Base64.decodeBase64(dataList.get("lo_cam_length")), Charsets.UTF_8);
 		String loCamName = new String(Base64.decodeBase64(dataList.get("lo_cam_name")), Charsets.UTF_8);
+		String calibrationFileName = dataList.get("calib_file_name");
+		if (calibrationFileName != null) {
+			calibrationFileName = new String(Base64.decodeBase64(dataList.get("calib_file_name")), Charsets.UTF_8);
+		} else {
+			calibrationFileName = "Not Found";
+		}
+
 
 		// Create folder path and output file path
 		String folderName = fileName.substring(0, fileName.lastIndexOf('.'));
@@ -50,7 +57,6 @@ public class LOFileStrategy implements FileStrategy {
 
 		// Ensure the directory exists
 		Files.createDirectories(directoryPath);
-
 		// Stream data directly to the file
 		try (OutputStream outputStream = Files.newOutputStream(outputPath)) {
 			byte[] buffer = new byte[8192]; // Use a larger buffer for efficiency
@@ -63,68 +69,49 @@ public class LOFileStrategy implements FileStrategy {
 		}
 
 		// Create configurations file and clean up upload
-		createConfigurationsFile(directoryPath, loCamName, loCamLength);
+		createConfigurationsFile(directoryPath, loCamName, loCamLength, calibrationFileName);
 		tusFileUploadService.deleteUpload(uploadUrl);
 	}
 
 
-	private Map<String, String> extractKeyValuesFromMetaData(String encodedMetaDataInput){
-		String[] keys = {"filename", "lo_cam_length", "lo_cam_name", "isCalibFile"};
+	Map<String, String> extractKeyValuesFromMetaData(String encodedMetaDataInput) {
+		String[] keys = {"filename", "calib_file_name", "lo_cam_length", "lo_cam_name", "isCalibFile"};
 
 		Map<String, String> keyValueMap = new HashMap<>();
 		for (int i = 0; i < keys.length; i++) {
-			int startIndex = encodedMetaDataInput.indexOf(keys[i]) + keys[i].length();
-			int endIndex = (i + 1 < keys.length) ? encodedMetaDataInput.indexOf(keys[i + 1]) : encodedMetaDataInput.length();
-			keyValueMap.put(keys[i], encodedMetaDataInput.substring(startIndex, endIndex));
+			int keyStartIndex = encodedMetaDataInput.indexOf(keys[i]);
+
+			if (keyStartIndex == -1) {
+				// Key not found, store empty value or skip
+				keyValueMap.put(keys[i], "NA");
+				continue;
+			}
+
+			keyStartIndex += keys[i].length();
+
+			int keyEndIndex = encodedMetaDataInput.length();
+			for (int j = i + 1; j < keys.length; j++) {
+				int nextKeyIndex = encodedMetaDataInput.indexOf(keys[j], keyStartIndex);
+				if (nextKeyIndex != -1) {
+					keyEndIndex = nextKeyIndex;
+					break;
+				}
+			}
+
+			String value = encodedMetaDataInput.substring(keyStartIndex, keyEndIndex).trim();
+			keyValueMap.put(keys[i], value);
 		}
+
 		return keyValueMap;
 	}
 
-	private boolean saveByteArrayDataToFile(byte[] byteArrayData, Path directoryPath, String fileName, String uploadUrl) throws IOException, TusException {
-		Files.createDirectories(directoryPath);
-		Path filePath = directoryPath.resolve(fileName);
-		File outputFile = filePath.toFile();
-
-		if (!outputFile.exists()) {
-			try (FileOutputStream fos = new FileOutputStream(outputFile)) {
-				fos.write(byteArrayData);
-			}
-			logger.info("File saved at: " + filePath.toString());
-		} else {
-			tusFileUploadService.deleteUpload(uploadUrl);
-			logger.warn("File already exists with the name: " + fileName);
-		}
-		return true;
-	}
-
-	private void createConfigurationsFile(Path directoryPath, String loCamName, String loCamLength) throws IOException {
+	private void createConfigurationsFile(Path directoryPath, String loCamName, String loCamLength, String calibrationFileName) throws IOException {
 		Path configFilePath = directoryPath.resolve("configurations.txt");
-		String latestFieldCalibFile = getLatestCalibrationFile();
 		String configContent = "CAMERA NAME: " + loCamName + "\n";
 		configContent += "CAMERA LENGTH: " + loCamLength + "\n";
-		if (latestFieldCalibFile != null)
-			configContent += "FIELD CALIBRATION FILE: " + latestFieldCalibFile;
+		if (calibrationFileName != null)
+			configContent += "FIELD CALIBRATION FILE: " + calibrationFileName;
 		Files.write(configFilePath, configContent.getBytes());
 		logger.info("Configurations file created at: " + configFilePath.toString());
-	}
-
-	private String getLatestCalibrationFile(){
-		File directory = new File(appProperties.getCalib_path());
-		if (!directory.exists() || !directory.isDirectory()){
-			return null;
-		}
-		File[] files = directory.listFiles();
-		if (files == null || files.length == 0){
-			return null;
-		}
-		File latestFile = Arrays.stream(files)
-			.filter(File::isFile)
-			.max(Comparator.comparingLong(File::lastModified))
-			.orElse(null);
-
-		if (latestFile != null)
-			return latestFile.getName();
-		else
-			return null;
 	}
 }
