@@ -42,8 +42,8 @@ public class LOFileStrategy implements FileStrategy {
 		String fileName = new String(Base64.decodeBase64(dataList.get("filename")), Charsets.UTF_8);
 		String loCamLength = new String(Base64.decodeBase64(dataList.get("lo_cam_length")), Charsets.UTF_8);
 		String loCamName = new String(Base64.decodeBase64(dataList.get("lo_cam_name")), Charsets.UTF_8);
-		String calibrationFileName = "";
-		if (dataList.get("calib_file_name") != null) {
+		String calibrationFileName = dataList.get("calib_file_name");
+		if (calibrationFileName != null) {
 			calibrationFileName = new String(Base64.decodeBase64(dataList.get("calib_file_name")), Charsets.UTF_8);
 		} else {
 			calibrationFileName = "Not Found";
@@ -74,7 +74,7 @@ public class LOFileStrategy implements FileStrategy {
 	}
 
 
-	private Map<String, String> extractKeyValuesFromMetaData(String encodedMetaDataInput) {
+	Map<String, String> extractKeyValuesFromMetaData(String encodedMetaDataInput) {
 		String[] keys = {"filename", "calib_file_name", "lo_cam_length", "lo_cam_name", "isCalibFile"};
 
 		Map<String, String> keyValueMap = new HashMap<>();
