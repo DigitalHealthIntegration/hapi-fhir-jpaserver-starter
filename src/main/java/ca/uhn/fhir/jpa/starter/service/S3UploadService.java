@@ -96,17 +96,13 @@ public class S3UploadService {
 		try {
 			if (!s3Client.doesObjectExist(bucketName, keyName))
 			{
-				try {
-					PutObjectRequest putObjectRequest = new PutObjectRequest(bucketName, keyName, file);
-					Upload upload = transferManager.upload(putObjectRequest);
-					upload.waitForCompletion();
+				PutObjectRequest putObjectRequest = new PutObjectRequest(bucketName, keyName, file);
+				Upload upload = transferManager.upload(putObjectRequest);
+				upload.waitForCompletion();
 
-					logger.info("Successfully Uploaded File to S3: " + file.getName());
+				logger.info("Successfully Uploaded File to S3: " + file.getName());
 
-					transferManager.shutdownNow(); // Always shut it down when done
-				} catch (Exception e) {
-					logger.error("AmazonServiceException: " + e.getMessage(), e);
-				}
+				transferManager.shutdownNow();
 			} else {
 				logger.info("File already exists in the S3: " + file.getName());
 			}
