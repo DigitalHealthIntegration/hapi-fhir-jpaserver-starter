@@ -106,12 +106,17 @@ public class LOFileStrategy implements FileStrategy {
 	}
 
 	private void createConfigurationsFile(Path directoryPath, String loCamName, String loCamLength, String calibrationFileName) throws IOException {
-		Path configFilePath = directoryPath.resolve("configurations.txt");
-		String configContent = "CAMERA NAME: " + loCamName + "\n";
-		configContent += "CAMERA LENGTH: " + loCamLength + "\n";
-		if (calibrationFileName != null)
-			configContent += "FIELD CALIBRATION FILE: " + calibrationFileName;
-		Files.write(configFilePath, configContent.getBytes());
-		logger.info("Configurations file created at: " + configFilePath.toString());
+		try{
+			Path configFilePath = directoryPath.resolve("configurations.txt");
+			String configContent = "CAMERA NAME: " + loCamName + "\n";
+			configContent += "CAMERA LENGTH: " + loCamLength + "\n";
+			if (calibrationFileName != null)
+				configContent += "FIELD CALIBRATION FILE: " + calibrationFileName;
+			Files.write(configFilePath, configContent.getBytes());
+			logger.info("Configurations file created at: " + configFilePath.toString());
+		} catch (Exception e){
+			logger.error(e.getMessage());
+			logger.error("Error in creating configuration file: " + directoryPath);
+		}
 	}
 }
