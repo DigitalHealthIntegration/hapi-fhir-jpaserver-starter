@@ -69,8 +69,13 @@ public class LOFileStrategy implements FileStrategy {
 		}
 
 		// Create configurations file and clean up upload
-		createConfigurationsFile(directoryPath, loCamName, loCamLength, calibrationFileName);
-		tusFileUploadService.deleteUpload(uploadUrl);
+		try {
+			createConfigurationsFile(directoryPath, loCamName, loCamLength, calibrationFileName);
+		} catch (Exception e) {
+			logger.error("Error in creating configuration file: " + e.getMessage());
+		} finally {
+			tusFileUploadService.deleteUpload(uploadUrl);
+		}
 	}
 
 
@@ -106,17 +111,12 @@ public class LOFileStrategy implements FileStrategy {
 	}
 
 	private void createConfigurationsFile(Path directoryPath, String loCamName, String loCamLength, String calibrationFileName) throws IOException {
-		try{
-			Path configFilePath = directoryPath.resolve("configurations.txt");
-			String configContent = "CAMERA NAME: " + loCamName + "\n";
-			configContent += "CAMERA LENGTH: " + loCamLength + "\n";
-			if (calibrationFileName != null)
-				configContent += "FIELD CALIBRATION FILE: " + calibrationFileName;
-			Files.write(configFilePath, configContent.getBytes());
-			logger.info("Configurations file created at: " + configFilePath.toString());
-		} catch (Exception e){
-			logger.error(e.getMessage());
-			logger.error("Error in creating configuration file: " + directoryPath);
-		}
+		Path configFilePath = directoryPath.resolve("configurations.txt");
+		String configContent = "CAMERA NAME: " + loCamName + "\n";
+		configContent += "CAMERA LENGTH: " + loCamLength + "\n";
+		if (calibrationFileName != null)
+			configContent += "FIELD CALIBRATION FILE: " + calibrationFileName;
+		Files.write(configFilePath, configContent.getBytes());
+		logger.info("Configurations file created at: " + configFilePath.toString());
 	}
 }
