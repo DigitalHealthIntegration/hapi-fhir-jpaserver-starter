@@ -676,20 +676,28 @@ public class HelperService {
 		return null;
 	}
 
-	private UserRepresentation getExistingKeycloakUser(String username) {
+	private UserRepresentation getExistingKeycloakUser(String username, String email) {
 		RealmResource realmResource = fhirClientAuthenticatorService.getKeycloak()
 			.realm(appProperties.getKeycloak_Client_Realm());
-		try {
-			List<UserRepresentation> users = realmResource.users().search(username, true);
-			if (users != null && !users.isEmpty()) {
-				for (UserRepresentation user : users) {
-					if (user.getUsername().equalsIgnoreCase(username)) {
-						return user;
-					}
+		if (username != null && !username.trim().isEmpty()) {
+			try {
+				List<UserRepresentation> existingByUsername = realmResource.users().searchByUsername(username, true);
+				if (!existingByUsername.isEmpty()) {
+					return existingByUsername.get(0);
 				}
+			} catch (NotFoundException e) {
+				logger.warn("Keycloak resource not found when searching for username: {}", username);
 			}
-		} catch (NotFoundException e) {
-			logger.error("Keycloak resource not found for username: {}. Error: {}", username, e.getMessage());
+		}
+		if (email != null && !email.trim().isEmpty()) {
+			try {
+				List<UserRepresentation> existingByEmail = realmResource.users().searchByEmail(email, true);
+				if (!existingByEmail.isEmpty()) {
+					return existingByEmail.get(0);
+				}
+			} catch (NotFoundException e) {
+				logger.warn("Keycloak resource not found when searching for email: {}", email);
+			}
 		}
 		return null;
 	}
@@ -799,8 +807,13 @@ public class HelperService {
 			String countryName = userDetails.getCountryName();
 
 			// Check if the user already exists in Keycloak
-			if (getExistingKeycloakUser(keycloakUserName) != null) {
-				failedRecords.add("Username already present: " + keycloakUserName);
+			UserRepresentation existingUser = getExistingKeycloakUser(keycloakUserName, email);
+			if (existingUser != null) {
+				if (existingUser.getUsername().equalsIgnoreCase(keycloakUserName)) {
+					failedRecords.add("Username already present: " + keycloakUserName);
+				} else if (email != null && email.equalsIgnoreCase(existingUser.getEmail())) {
+					failedRecords.add("Email already present: " + email);
+				}
 				continue;
 			}
 
@@ -1042,9 +1055,14 @@ public class HelperService {
 			String type = dashboardUserDetails.getType();
 
 			// Check if a user with the given userName already exists in Keycloak
-			if (getExistingKeycloakUser(userName) != null) {
-				invalidUsers.add("Username already exists: " + userName);
-				continue; // Skip to the next line in the CSV
+			UserRepresentation existingUser = getExistingKeycloakUser(userName, email);
+			if (existingUser != null) {
+				if (existingUser.getUsername().equalsIgnoreCase(userName)) {
+					invalidUsers.add("Username already present: " + userName);
+				} else if (email != null && email.equalsIgnoreCase(existingUser.getEmail())) {
+					invalidUsers.add("Email already present: " + email);
+				}
+				continue;
 			}
 
 			if (organizationName.isEmpty()) {
@@ -3305,13 +3323,21 @@ public class HelperService {
 	}
 
 	private String createKeycloakUser(UserRepresentation userRep) {
+		UserRepresentation existingUser = getExistingKeycloakUser(userRep.getUsername(), userRep.getEmail());
+		if (existingUser != null) {
+			String message;
+			if (existingUser.getUsername().equalsIgnoreCase(userRep.getUsername())) {
+				message = "User already present with same username: " + userRep.getUsername();
+			} else if (userRep.getEmail() != null && userRep.getEmail().equalsIgnoreCase(existingUser.getEmail())) {
+				message = "User already present with same email address: " + userRep.getEmail();
+			} else {
+				message = "User already exists with an unknown conflicting attribute.";
+			}
+			logger.warn(message);
+			return message;
+		}
 		RealmResource realmResource = fhirClientAuthenticatorService.getKeycloak()
 			.realm(appProperties.getKeycloak_Client_Realm());
-		List<UserRepresentation> existingByUsername = realmResource.users().searchByUsername(userRep.getUsername(), true);
-		if (!existingByUsername.isEmpty()) {
-			logger.info("User with username '{}' already exists. Returning existing ID.", userRep.getUsername());
-			return existingByUsername.get(0).getId();
-		}
 		try {
 			Response response = realmResource.users().create(userRep);
 			if (response.getStatusInfo().getFamily() == Response.Status.Family.SUCCESSFUL) {
@@ -3824,20 +3850,45 @@ public class HelperService {
 		return null;
 	}
 
+	/**
+	 * @param groupId      The ID of the Keycloak group.
+	 * @param userType     The user type to filter by (e.g., "web", "mobile").
+	 * @param realmResource The Keycloak realm resource.
+	 * @return A list of filtered UserRepresentations.
+	 */
+	private List<UserRepresentation> getUsersFromGroupFilteredByType(String groupId, String userType, RealmResource realmResource) {
+		List<UserRepresentation> groupMembers = realmResource.groups().group(groupId).members();
+		if (groupMembers == null || groupMembers.isEmpty()) {
+			return Collections.emptyList();
+		}
+
+		return groupMembers.stream()
+			.filter(user -> {
+				Map<String, List<String>> attributes = user.getAttributes();
+				boolean matches = attributes != null && attributes.get("user_type") != null &&
+					attributes.get("user_type").contains(userType);
+				if (!matches) {
+					logger.debug("User {} in group {} skipped, user_type does not match '{}'", user.getUsername(), groupId, userType);
+				}
+				return matches;
+			})
+			.collect(Collectors.toList());
+	}
+
 	// Get users from facility based on user type (for mobile users)
 	private List<Map<String, Object>> getFacilityUsersByType(String organizationId, String userType) {
 		List<Map<String, Object>> users = new ArrayList<>();
 		IGenericClient fhirClient = fhirClientAuthenticatorService.getFhirClient();
 		RealmResource realmResource = fhirClientAuthenticatorService.getKeycloak()
 			.realm(appProperties.getKeycloak_Client_Realm());
-		UsersResource usersResource = realmResource.users();
 
 		if (organizationId == null || organizationId.trim().isEmpty()) {
-			logger.error("Organization ID is null or empty");
+			logger.error("Validation failed: Organization ID is null or empty.");
 			return users;
 		}
+
 		if (userType == null || userType.trim().isEmpty()) {
-			logger.warn("User type is null or empty, defaulting to no filtering");
+			logger.error("Validation failed: User type is null or empty for Organization ID: {}", organizationId);
 			return users;
 		}
 
@@ -3867,47 +3918,20 @@ public class HelperService {
 				String groupId = getGroupIdByName(facilityUID, realmResource);
 				if (groupId == null) continue;
 
-				List<UserRepresentation> allUsers = usersResource.list();
-				logger.debug("Total users fetched: {}", allUsers.size());
-				List<UserRepresentation> groupMembers = allUsers.stream()
-					.filter(user -> {
-						try {
-							return realmResource.groups().group(groupId).members().stream()
-								.anyMatch(member -> member.getId().equals(user.getId()));
-						} catch (NotFoundException e) {
-							logger.warn("Group {} not found during membership check", groupId);
-							return false;
-						}
-					})
-					.collect(Collectors.toList());
+				List<UserRepresentation> filteredMembers = getUsersFromGroupFilteredByType(groupId, userType, realmResource);
 
-				if (groupMembers.isEmpty()) {
-					continue;
-				}
-
-				groupMembers.stream()
-					.filter(user -> {
-						Map<String, List<String>> attributes = user.getAttributes();
-						boolean matches = attributes != null && attributes.get("user_type") != null &&
-							attributes.get("user_type").contains(userType);
-						if (!matches) {
-							logger.debug("User {} skipped, user_type does not match {}", user.getUsername(), userType);
-						}
-						return matches;
-					})
-					.forEach(user -> {
-						Map<String, Object> userMap = new HashMap<>();
-						userMap.put("id", user.getId());
-						userMap.put("username", user.getUsername());
-						userMap.put("lastName", user.getLastName());
-						userMap.put("firstName", user.getFirstName());
-						userMap.put("email", user.getEmail());
-						userMap.put("user_type", user.getAttributes().get("user_type"));
-						userMap.put("facility_id", facilityId);
-						userMap.put("facility_name", facilityName);
-						users.add(userMap);
-						logger.debug("Added user {} to results", user.getUsername());
-					});
+				filteredMembers.forEach(user -> {
+					Map<String, Object> userMap = new HashMap<>();
+					userMap.put("id", user.getId());
+					userMap.put("username", user.getUsername());
+					userMap.put("lastName", user.getLastName());
+					userMap.put("firstName", user.getFirstName());
+					userMap.put("email", user.getEmail());
+					userMap.put("user_type", user.getAttributes().get("user_type"));
+					userMap.put("facility_id", facilityId);
+					userMap.put("facility_name", facilityName);
+					users.add(userMap);
+				});
 			}
 		} catch (Exception e) {
 			logger.error("Error fetching users for organization ID {}: {}", organizationId, ExceptionUtils.getStackTrace(e));
@@ -3923,14 +3947,14 @@ public class HelperService {
 		IGenericClient fhirClient = fhirClientAuthenticatorService.getFhirClient();
 		RealmResource realmResource = fhirClientAuthenticatorService.getKeycloak()
 			.realm(appProperties.getKeycloak_Client_Realm());
-		UsersResource usersResource = realmResource.users();
 
 		if (organizationId == null || organizationId.trim().isEmpty()) {
-			logger.error("Organization ID is null or empty");
+			logger.error("Validation failed: Organization ID is null or empty.");
 			return users;
 		}
+
 		if (userType == null || userType.trim().isEmpty()) {
-			logger.warn("User type is null or empty, defaulting to no filtering");
+			logger.error("Validation failed: User type is null or empty for Organization ID: {}", organizationId);
 			return users;
 		}
 
@@ -3949,48 +3973,26 @@ public class HelperService {
 				return users;
 			}
 
-			List<UserRepresentation> allUsers = usersResource.list();
-			logger.debug("Total users fetched: {}", allUsers.size());
-			List<UserRepresentation> groupMembers = allUsers.stream()
-				.filter(user -> {
-					try {
-						return realmResource.groups().group(groupId).members().stream()
-							.anyMatch(member -> member.getId().equals(user.getId()));
-					} catch (NotFoundException e) {
-						logger.warn("Group {} not found during membership check", groupId);
-						return false;
-					}
-				})
-				.collect(Collectors.toList());
+			List<UserRepresentation> filteredMembers = getUsersFromGroupFilteredByType(groupId, userType, realmResource);
 
-			if (groupMembers.isEmpty()) {
-				logger.warn("No members found in group {} for organization {}", groupId, orgName);
+			if (filteredMembers.isEmpty()) {
+				logger.warn("No members found in group {} for organization {} with user type {}", groupId, orgName, userType);
 				return users;
 			}
 
-			groupMembers.stream()
-				.filter(user -> {
-					Map<String, List<String>> attributes = user.getAttributes();
-					boolean matches = attributes != null && attributes.get("user_type") != null &&
-						attributes.get("user_type").contains(userType);
-					if (!matches) {
-						logger.debug("User {} skipped, user_type does not match {}", user.getUsername(), userType);
-					}
-					return matches;
-				})
-				.forEach(user -> {
-					Map<String, Object> userMap = new HashMap<>();
-					userMap.put("id", user.getId());
-					userMap.put("username", user.getUsername());
-					userMap.put("lastName", user.getLastName());
-					userMap.put("firstName", user.getFirstName());
-					userMap.put("email", user.getEmail());
-					userMap.put("user_type", user.getAttributes().get("user_type"));
-					userMap.put("organization_id", organizationId);
-					userMap.put("organization_name", orgName);
-					users.add(userMap);
-					logger.debug("Added user {} to results", user.getUsername());
-				});
+			filteredMembers.forEach(user -> {
+				Map<String, Object> userMap = new HashMap<>();
+				userMap.put("id", user.getId());
+				userMap.put("username", user.getUsername());
+				userMap.put("lastName", user.getLastName());
+				userMap.put("firstName", user.getFirstName());
+				userMap.put("email", user.getEmail());
+				userMap.put("user_type", user.getAttributes().get("user_type"));
+				userMap.put("organization_id", organizationId);
+				userMap.put("organization_name", orgName);
+				users.add(userMap);
+			});
+
 		} catch (Exception e) {
 			logger.error("Error fetching users for organization ID {}: {}", organizationId, ExceptionUtils.getStackTrace(e));
 		}
