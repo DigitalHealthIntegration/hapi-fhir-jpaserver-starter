@@ -987,7 +987,7 @@ public class HelperService {
 						argusoftIdentifier, countryName);
 					String keycloakUserId = createKeycloakUser(user);
 					if (keycloakUserId == null) {
-						failedRecords.add("User not created in Keycloak for: " + s);
+						failedRecords.add("Failed to create user: " + s);
 						continue;
 					}
 					// Create or update Keycloak role representation
