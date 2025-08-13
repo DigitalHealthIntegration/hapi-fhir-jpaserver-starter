@@ -3870,7 +3870,6 @@ public class HelperService {
 	}
 
 	private List<Map<String, Object>> getFacilityUsersByType(String organizationId, String userType) {
-		logger.warn("Starting BATCH getFacilityUsersByType for orgId: {}", organizationId);
 		List<Map<String, Object>> users = new ArrayList<>();
 
 		if (organizationId == null || organizationId.trim().isEmpty() || userType == null || userType.trim().isEmpty()) {
@@ -3944,7 +3943,6 @@ public class HelperService {
 	}
 
 	private List<Map<String, Object>> getOrgLevelUsersByType(String organizationId, String userType) {
-		logger.warn("Starting getOrgLevelUsersByType for orgId: {}", organizationId);
 		List<Map<String, Object>> users = new ArrayList<>();
 
 		if (organizationId == null || organizationId.trim().isEmpty() || userType == null || userType.trim().isEmpty()) {
