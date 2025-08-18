@@ -128,6 +128,10 @@ public class AppProperties {
 		return hyperSpectral_bucket_name;
 	}
 
+	public void setCalib_path(String calib_path) {
+		this.calib_path = calib_path;
+	}
+
 	public void setHyperSpectral_bucket_name(String hyperSpectral_bucket_name) {
 		this.hyperSpectral_bucket_name = hyperSpectral_bucket_name;
 	}
@@ -136,9 +140,7 @@ public class AppProperties {
 		return calib_path;
 	}
 
-	public void setCalib_path(String calib_path) {
-		this.calib_path = calib_path;
-	}
+	private String hyper_spectral_files_path = null;
 
 	public String getHyper_spectral_files_path() {
 		return hyper_spectral_files_path;
@@ -148,7 +150,25 @@ public class AppProperties {
 		this.hyper_spectral_files_path = hyper_spectral_files_path;
 	}
 
-	private String hyper_spectral_files_path = null;
+	private String depth_capture_files_path = null;
+
+	public void setDepth_capture_files_path(String depth_capture_files_path) {
+		this.depth_capture_files_path = depth_capture_files_path;
+	}
+
+	public String getDepth_capture_files_path() {
+		return depth_capture_files_path;
+	}
+
+	private String rgb_capture_files_path = null;
+
+	public void setRgb_capture_files_path(String rgb_capture_files_path) {
+		this.rgb_capture_files_path = rgb_capture_files_path;
+	}
+
+	public String getRgb_capture_files_path() {
+		return rgb_capture_files_path;
+	}
 
 	public Double getMinNoisePercentage() {
 		return minNoisePercentage;

@@ -118,6 +118,8 @@ hapi:
       #      hibernate.cache.use_minimal_puts: false
       image_path: image
       hyper_spectral_files_path: hyperSpectralFiles
+      depth_capture_files_path: depthCaptureFiles
+      rgb_capture_files_path: rgbCaptureFiles
       calib_path: hyperSpectralFiles/calibration
       audio_recordings_path: audio
       country_org_id: nigeria

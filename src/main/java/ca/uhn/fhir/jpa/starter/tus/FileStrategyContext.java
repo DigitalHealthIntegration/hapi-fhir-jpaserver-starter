@@ -31,6 +31,10 @@ public class FileStrategyContext {
 	@Autowired
 	private CalibFileStrategy calibFileStrategy;
 	@Autowired
+	private BagFileStrategy bagFileStrategy;
+	@Autowired
+	private RGBFileStrategy rgbFileStrategy;
+	@Autowired
 	private TusServerProperties tusServerProperties;
 
 	private FileStrategy strategy;
@@ -60,6 +64,10 @@ public class FileStrategyContext {
 				return loFileStrategy;
 			case "CALIB":
 				return calibFileStrategy;
+			case "BAG":
+				return bagFileStrategy;
+			case "RGB":
+				return rgbFileStrategy;
 			default:
 				return null;
 		}
@@ -96,6 +104,10 @@ public class FileStrategyContext {
 			return TUSFileTypes.AUDIO.name();
 		} else if (fileName.contains(".lo") && !isCalibFile.equals("True")) {
 			return TUSFileTypes.LOFILE.name();
+		} else if (fileName.contains(".bag")) {
+			return TUSFileTypes.BAG.name();
+		} else if (fileName.contains(".mp4")) {
+			return TUSFileTypes.RGB.name();
 		}
 		return "UNKNOWN";
 	}
