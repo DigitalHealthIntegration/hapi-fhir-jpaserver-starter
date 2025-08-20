@@ -29,7 +29,6 @@ import ca.uhn.fhir.rest.client.api.IGenericClient;
 import ca.uhn.fhir.rest.client.impl.GenericClient;
 import ca.uhn.fhir.rest.gclient.ICriterion;
 import ca.uhn.fhir.rest.gclient.IQuery;
-import ca.uhn.fhir.rest.gclient.StringClientParam;
 import ca.uhn.fhir.rest.gclient.ReferenceClientParam;
 import ca.uhn.fhir.rest.gclient.TokenClientParam;
 import ca.uhn.fhir.rest.server.exceptions.InternalErrorException;
@@ -222,6 +221,7 @@ public class HelperService {
 	private static final List<String> FACILITY_SYNONYMS = Arrays.asList("prov", "provider", "clinic", "healthcare");
 	private static final String FACILITY_CODE_SYSTEM = "http://www.iprdgroup.com/Identifier/System/facilityCode";
 	private static final String FACILITY_UID_SYSTEM = "http://www.iprdgroup.com/Identifier/System/facilityUID";
+	private static final int KEYCLOAK_PAGE_SIZE = 100;
 
 	@PostConstruct
 	public void init() {
@@ -3804,24 +3804,24 @@ public class HelperService {
 		return org.getIdentifier().stream()
 			.filter(identifier -> FACILITY_UID_SYSTEM.equals(identifier.getSystem()))
 			.findFirst()
-			.map(identifier -> identifier.getValue())
+			.map(Identifier::getValue)
 			.orElse(null);
 	}
 
 	// Get group ID by group name with enhanced logging
 	private String getGroupIdByName(String groupName, RealmResource realmResource) {
-		if (groupName == null || groupName.trim().isEmpty()) {
-			logger.warn("Group name is null or empty");
+		if (groupName == null) {
+			logger.warn("Group name is null");
 			return null;
 		}
 		try {
 			List<GroupRepresentation> groups = realmResource.groups().groups(groupName, true, 0, 1, false);
 			return groups.stream()
-				.filter(g -> g != null && g.getName().equals(groupName))
+				.filter(group -> group != null && group.getName().equals(groupName))
 				.findFirst()
-				.map(g -> {
-					logger.debug("Found group ID {} for name {}", g.getId(), groupName);
-					return g.getId();
+				.map(group -> {
+					logger.debug("Found group ID {} for name {}", group.getId(), groupName);
+					return group.getId();
 				})
 				.orElseGet(() -> {
 					logger.error("No group found for name {}", groupName);
@@ -3839,40 +3839,60 @@ public class HelperService {
 	 * @param realmResource The Keycloak realm resource.
 	 * @return A list of filtered UserRepresentations.
 	 */
-	private List<UserRepresentation> getGroupMembersFilteredByType(String groupId, String userType, RealmResource realmResource) {
+	private List<UserRepresentation> getGroupMembersFilteredByType(String groupId, UserType userType, RealmResource realmResource) {
 		if (groupId == null || userType == null) {
 			return Collections.emptyList();
 		}
 
-		try {
-			List<UserRepresentation> groupMembers = realmResource.groups().group(groupId).members(0, Integer.MAX_VALUE);
+		List<UserRepresentation> filteredMembers  = new ArrayList<>();
 
-			if (groupMembers.isEmpty()) {
-				logger.debug("No members found in group ID {}", groupId);
-				return Collections.emptyList();
+		int first = 0;
+
+		try {
+			List<UserRepresentation> currentPage;
+
+			do {
+				currentPage = realmResource.groups()
+					.group(groupId)
+					.members(first, KEYCLOAK_PAGE_SIZE);
+
+				if (currentPage.isEmpty()) {
+					break;
+				}
+
+				List<UserRepresentation> filteredPage = currentPage.stream()
+					.filter(user -> {
+						Map<String, List<String>> attributes = user.getAttributes();
+						return attributes != null
+							&& attributes.containsKey("user_type")
+							&& attributes.get("user_type").contains(userType.getType());
+					})
+					.collect(Collectors.toList());
+
+				filteredMembers.addAll(filteredPage);
+
+				first += KEYCLOAK_PAGE_SIZE;
+			} while (currentPage.size() == KEYCLOAK_PAGE_SIZE);
+
+			if (filteredMembers.isEmpty()) {
+				logger.debug("No members of type {} found in group ID {}", userType, groupId);
 			}
 
-			return groupMembers.stream()
-				.filter(user -> {
-					Map<String, List<String>> attributes = user.getAttributes();
-					return attributes != null && attributes.get("user_type") != null &&
-						attributes.get("user_type").contains(userType);
-				})
-				.collect(Collectors.toList());
+			return filteredMembers;
 
 		} catch (NotFoundException e) {
-			logger.warn("Group {} not found when fetching members.", groupId);
+			logger.warn("Group {} not found when fetching members.", groupId, e);
 			return Collections.emptyList();
 		} catch (Exception e) {
-			logger.error("Error fetching or filtering members for group ID {}: {}", groupId, e);
+			logger.error("Error fetching or filtering members for group ID {}", groupId, e);
 			return Collections.emptyList();
 		}
 	}
 
-	private List<Map<String, Object>> getFacilityUsersByType(String organizationId, String userType) {
+	private List<Map<String, Object>> getFacilityUsersByType(String organizationId, UserType userType) {
 		List<Map<String, Object>> users = new ArrayList<>();
 
-		if (organizationId == null || organizationId.trim().isEmpty() || userType == null || userType.trim().isEmpty()) {
+		if (organizationId == null || userType == null) {
 			logger.error("Organization ID or user type is null or empty");
 			return users;
 		}
@@ -3891,7 +3911,7 @@ public class HelperService {
 
 			Bundle orgBundle = fhirClient.search()
 				.forResource(Organization.class)
-				.where(new StringClientParam("_id").matches().values(facilityIds))
+				.where(Organization.RES_ID.exactly().codes(facilityIds))
 				.returnBundle(Bundle.class)
 				.execute();
 
@@ -3902,15 +3922,15 @@ public class HelperService {
 			List<GroupRepresentation> allGroups = realmResource.groups().groups();
 
 			Map<String, String> groupNameToIdMap = allGroups.stream()
-				.collect(Collectors.toMap(GroupRepresentation::getName, GroupRepresentation::getId, (id1, id2) -> id1));
+				.collect(Collectors.toMap(GroupRepresentation::getName, GroupRepresentation::getId));
 
 			for (OrgItem facility : facilities) {
-				Organization org = orgMap.get(facility.getId());
-				if (org == null) continue;
+				Organization organization = orgMap.get(facility.getId());
+				if (organization == null) continue;
 
-				String groupName = extractFacilityUID(org);
+				String groupName = extractFacilityUID(organization);
 				if (groupName == null) {
-					logger.warn("Could not find facilityUID for organization ID {}", org.getId());
+					logger.warn("Could not find facilityUID for organization ID {}", organization.getId());
 					continue;
 				}
 
@@ -3942,10 +3962,10 @@ public class HelperService {
 		return users;
 	}
 
-	private List<Map<String, Object>> getOrgLevelUsersByType(String organizationId, String userType) {
+	private List<Map<String, Object>> getOrgLevelUsersByType(String organizationId, UserType userType) {
 		List<Map<String, Object>> users = new ArrayList<>();
 
-		if (organizationId == null || organizationId.trim().isEmpty() || userType == null || userType.trim().isEmpty()) {
+		if (organizationId == null || userType == null) {
 			logger.error("Organization ID or user type is null or empty");
 			return users;
 		}
@@ -3990,12 +4010,12 @@ public class HelperService {
 
 	// Specific method for mobile users (facility-specific)
 	public List<Map<String, Object>> getMobileUsersFromOrgId(String organizationId) {
-		return getFacilityUsersByType(organizationId, "mobile");
+		return getFacilityUsersByType(organizationId, UserType.MOBILE);
 	}
 
 	// Specific method for web (dashboard) users (organization-level)
 	public List<Map<String, Object>> getWebUsersFromOrgId(String organizationId) {
-		return getOrgLevelUsersByType(organizationId, "web");
+		return getOrgLevelUsersByType(organizationId, UserType.WEB);
 	}
 
 	/**
@@ -4008,16 +4028,16 @@ public class HelperService {
 	public ResponseEntity<LinkedHashMap<String, Object>> resetUserPasswordByUsername(String username, String newPassword) {
 		LinkedHashMap<String, Object> response = new LinkedHashMap<>();
 		try {
-			if (username == null || username.trim().isEmpty()) {
-				logger.warn("Username is null or empty");
+			if (username == null) {
+				logger.warn("Username is null");
 				response.put("status", "error");
-				response.put("message", "Username is null or empty");
+				response.put("message", "Username is null ");
 				return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
 			}
-			if (newPassword == null || newPassword.trim().isEmpty()) {
-				logger.warn("New password is null or empty");
+			if (newPassword == null) {
+				logger.warn("New password is null");
 				response.put("status", "error");
-				response.put("message", "New password is null or empty");
+				response.put("message", "New password is null");
 				return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
 			}
 
@@ -4031,7 +4051,7 @@ public class HelperService {
 				response.put("message", "No user found with username: " + username);
 				return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
 			}
-			UserRepresentation user = users.get(0);
+			UserRepresentation user = users.get(0);  // usernames are unique in Keycloak, so the list will contain at most one user
 			String userId = user.getId();
 
 			// Create credential representation for new password
@@ -4069,5 +4089,20 @@ public class HelperService {
 	public class MapResponse {
 		private String categoryId;
 		private ArrayList<LocationData> categoryResult;
+	}
+
+	public enum UserType {
+		MOBILE("mobile"),
+		WEB("web");
+
+		private final String type;
+
+		UserType(String  type) {
+			this.type = type;
+		}
+
+		public String getType() {
+			return type;
+		}
 	}
 }
