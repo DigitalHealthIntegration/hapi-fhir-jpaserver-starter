@@ -1,0 +1,15 @@
+{
+  "headers": [
+    "SerialNr", "Date", "PatientName", "CardNr", "Age 10_14", "Age_15_19", "Age 20_34", "Age 35_49", "Age 50",
+    "Parity", "ANC_N", "ANC_R", "LMP", "Age of Pregnancy", "Weight", "Height", "BloodPressure", "NrClinicVisits",
+    "Counselling HIV", "Counselling FGM", "Counselling Family Planning", "Counselling Maternal Nutrition",
+    "Counselling Early Breastfeeding", "Counselling Exclusive Breastfeeding"
+  ],
+  "rows": [
+    ["121", "9/1/24", "Uwani Yahuza", "1131/24", "", "", "35y", "", "", "G6p5", "Y", "", "", "30wk", "60kg", "", "120/80mmHg", "1", "Y", "Y", "Y", "Y", "Y", ""],
+    ["122", "9/1/24", "Kande Adamu", "25/24", "", "", "30y", "", "", "G4p3", "Y", "", "", "27wk", "27kg", "73kg", "100/72", "1", "Y", "Y", "Y", "Y", "Y", ""],
+    ["123", "9/1/24", "Sabuwa Aliyu", "1008/23", "", "", "30y", "", "", "G6p5", "Y", "", "", "20wk", "20kg", "60kg", "85/61", "1", "Y", "Y", "Y", "Y", "Y", ""],
+    ["124", "9/1/24", "Aisha Badamasi", "45/24", "", "", "20y", "", "", "G2p1", "Y", "", "", "16wk", "60kg", "", "120/80", "1", "Y", "Y", "Y", "Y", "Y", ""],
+    ["125", "9/1/24", "Jamila musa", "46/24", "", "", "23y", "", "", "G3p2", "Y", "", "", "20wk", "63kg", "", "95/60mmHg", "1", "Y", "Y", "Y", "Y", "Y", ""]
+  ]
+}
