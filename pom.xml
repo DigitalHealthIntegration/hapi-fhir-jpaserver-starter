@@ -70,6 +70,11 @@
             <version>${jetty_version}</version>
         </dependency>
         <dependency>
+            <groupId>com.github.javafaker</groupId>
+            <artifactId>javafaker</artifactId>
+            <version>0.12</version>
+        </dependency>
+        <dependency>
             <groupId>org.opencampaignlink.</groupId>
             <artifactId>report-generator-jvm</artifactId>
             <version>1.0.50</version>

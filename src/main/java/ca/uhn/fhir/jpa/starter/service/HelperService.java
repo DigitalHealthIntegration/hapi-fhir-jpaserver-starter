@@ -1273,7 +1273,7 @@ public class HelperService {
 //		return ResponseEntity.ok(dataResult);
 //	}
 
-	public void saveInAsyncTable(DataResult dataResult, String id) {
+	public void saveInAsyncTable(DataResult dataResult, String id, Boolean isApiRequest) {
 		notificationDataSource = NotificationDataSource.getInstance();
 		byte[] summaryResult = dataResult.getSummaryResult();
 		List<Map<String, String>> dailyResult = dataResult.getDailyResult();
@@ -1290,6 +1290,8 @@ public class HelperService {
 			asyncRecord.setLastUpdated(Date.valueOf(LocalDate.now()));
 			asyncRecord.setAnonymousEntry(ISANONYMIZED.NO.name());
 			notificationDataSource.update(asyncRecord);
+			if (!isApiRequest)
+				saveAnonymousDataInAsyncTable(dataResult, id);
 		} catch (Exception e) {
 			logger.warn(ExceptionUtils.getStackTrace(e));
 		}
@@ -1341,7 +1343,7 @@ public class HelperService {
 
 			if (categories.indexOf(category) == (categories.size() - 1)) {
 				if (!isApiRequest || !hashCodesToBeProcessed.isEmpty()) {
-					saveQueryResultAndHandleException(organizationId, startDate, endDate, filters, hashCodes, env, ancDailySummaryConfig);
+					saveQueryResultAndHandleException(organizationId, startDate, endDate, filters, hashCodes, env, ancDailySummaryConfig, isApiRequest);
 				} else {
 					if (hashCodesToBeProcessed.isEmpty() && fetchAsyncData != null && !fetchAsyncData.isEmpty()) {
 						Date lastUpdated = fetchAsyncData.get(0).getLastUpdated();
@@ -1353,7 +1355,7 @@ public class HelperService {
 								asyncRecord.setStatus(ApiAsyncTaskEntity.Status.PROCESSING.name());
 							}
 							datasource.updateObjects(entitiesToUpdate);
-							saveQueryResultAndHandleException(organizationId, startDate, endDate, filters, hashCodes, env, ancDailySummaryConfig);
+							saveQueryResultAndHandleException(organizationId, startDate, endDate, filters, hashCodes, env, ancDailySummaryConfig, isApiRequest);
 						}
 					}
 				}
@@ -1364,11 +1366,11 @@ public class HelperService {
 
 	public void saveQueryResultAndHandleException(String organizationId, String startDate, String endDate,
 																 LinkedHashMap<String, String> filters, List<String> hashcodes, String env,
-																 List<ANCDailySummaryConfig> ancDailySummaryConfig) {
+																 List<ANCDailySummaryConfig> ancDailySummaryConfig, Boolean isApiRequest) {
 		ThreadPoolTaskExecutor executor = getAsyncExecutor();
 		executor.submit(() -> {
 			try {
-				saveQueryResult(organizationId, startDate, endDate, filters, hashcodes, env, ancDailySummaryConfig);
+				saveQueryResult(organizationId, startDate, endDate, filters, hashcodes, env, ancDailySummaryConfig, isApiRequest);
 			} catch (FileNotFoundException e) {
 				// Handle the exception, e.g., log it or take appropriate action.
 				e.printStackTrace();
@@ -1380,35 +1382,68 @@ public class HelperService {
 		return asyncConf.asyncExecutor();
 	}
 
+	public void saveAnonymousDataInAsyncTable(DataResult dataResult, String id){
+		List<Map<String, String>> dailyResult = dataResult.getDailyResult();
+		if (id.contains("bio")) {
+			int i;
+			if (!dailyResult.isEmpty()){
+				for (i = 0; i < dailyResult.size(); i++){
+					String randomGeneratedName = Utils.generateRandomName();
+					String randomGeneratedOclId = Utils.generateRandomPatientOclId();
+					String randomDOB = Utils.generateRandomDate();
+					Map<String, String> singleDailyResult = dailyResult.get(i);
+					singleDailyResult.put("Name", randomGeneratedName);
+					singleDailyResult.put("Card Number",randomGeneratedOclId);
+					singleDailyResult.put("Date of Birth",randomDOB);
+				}
+			}
+			byte[] summaryResult = dataResult.getSummaryResult();
+			String base64SummaryResult = Base64.getEncoder().encodeToString(summaryResult);
+			String dailyResultJsonString = new Gson().toJson(dailyResult);
+			String uuidHash = getFormattedUuid(id);
+			ApiAsyncTaskEntity apiAsyncTaskEntity = new ApiAsyncTaskEntity(
+				uuidHash,
+				ApiAsyncTaskEntity.Status.COMPLETED.name(),
+				ClobProxy.generateProxy(base64SummaryResult),
+				ClobProxy.generateProxy(dailyResultJsonString),
+				Date.valueOf(LocalDate.now()),
+				ISANONYMIZED.YES.name()
+			);
+			notificationDataSource.insert(apiAsyncTaskEntity);
+		}
+	}
+
 	public ResponseEntity<?> getAsyncData(Map<String, String> categoryWithHashCodes, Boolean isAnonymizationEnabled) throws SQLException, IOException {
 		List<DataResultJava> dataResult = new ArrayList<>();
 		for (Map.Entry<String, String> item : categoryWithHashCodes.entrySet()) {
-			String dateRangeValue = getFormattedUUID(item.getValue());
 			ArrayList<ApiAsyncTaskEntity> asyncData = datasource.fetchStatus(item.getValue());
-			ArrayList<ApiAsyncTaskEntity> anonymousAsyncData = datasource.fetchAnonymousData(dateRangeValue);
 			if (asyncData == null) return ResponseEntity.ok("Searching in Progress");
 			ApiAsyncTaskEntity asyncRecord = asyncData.get(0);
 			if (asyncRecord.getSummaryResult() == null || asyncRecord.getStatus() == ApiAsyncTaskEntity.Status.PROCESSING.name())
 				return ResponseEntity.ok("Searching in Progress");
 			String dailyResultInString = convertClobToString(asyncRecord.getDailyResult());
 			String summaryResultInString = convertClobToString(asyncRecord.getSummaryResult());
-			if (!anonymousAsyncData.isEmpty() && isAnonymizationEnabled) {
+			List<Map<String, String>> dailyResult = mapper.readValue(dailyResultInString, new TypeReference<List<Map<String, String>>>() {
+			});
+			dataResult.add(new DataResultJava(item.getKey(), summaryResultInString, dailyResult));
+		}
+		if (isAnonymizationEnabled){
+			String formattedUuid = getFormattedUuid(categoryWithHashCodes.get("patient-bio-data"));
+			ArrayList<ApiAsyncTaskEntity> anonymousAsyncData = datasource.fetchAnonymousData(formattedUuid);
+			if (!anonymousAsyncData.isEmpty()) {
+				dataResult.removeIf(dataResultJava -> dataResultJava.getCategoryId().contains("bio"));
 				ApiAsyncTaskEntity anonymousAsyncRecord = anonymousAsyncData.get(0);
 				String anonymousDailyResultInString = convertClobToString(anonymousAsyncRecord.getDailyResult());
 				String anonymousSummaryResultInString = convertClobToString(anonymousAsyncRecord.getSummaryResult());
 				List<Map<String, String>> anonymousDailyResult = mapper.readValue(anonymousDailyResultInString, new TypeReference<List<Map<String, String>>>() {
 				});
-				dataResult.add(new DataResultJava(item.getKey(), anonymousSummaryResultInString, anonymousDailyResult));
-			} else{
-				List<Map<String, String>> dailyResult = mapper.readValue(dailyResultInString, new TypeReference<List<Map<String, String>>>() {
-				});
-				dataResult.add(new DataResultJava(item.getKey(), summaryResultInString, dailyResult));
+				dataResult.add(new DataResultJava("patient-bio-data", anonymousSummaryResultInString, anonymousDailyResult));
 			}
 		}
 		return ResponseEntity.ok(dataResult);
 	}
 
-	public static String getFormattedUUID(String input) {
+	public static String getFormattedUuid(String input) {
 		// Regular expression to match the date range pattern followed by any text
 		String regex = "(\\d{4}-\\d{2}-\\d{2})(\\d{4}-\\d{2}-\\d{2})(.*)";
 
@@ -1428,7 +1463,7 @@ public class HelperService {
 
 	public void saveQueryResult(String organizationId, String startDate, String endDate,
 										 LinkedHashMap<String, String> filters, List<String> hashcodes, String env,
-										 List<ANCDailySummaryConfig> ancDailySummaryConfig) throws FileNotFoundException {
+										 List<ANCDailySummaryConfig> ancDailySummaryConfig, Boolean isApiRequest) throws FileNotFoundException {
 
 		List<String> fhirSearchList = getFhirSearchListByFilters(filters, env);
 		logger.warn("Calling details page function saveQueryResult. StartDate: {} EndDate: {}", startDate, endDate);
@@ -1436,7 +1471,7 @@ public class HelperService {
 		List<DataResult> dataResult = (List<DataResult>) getReportGen("getAncDailySummaryData", organizationId, startDate, endDate,
 			fhirSearchList, ancDailySummaryConfig);
 		for (String hashcode : hashcodes) {
-			saveInAsyncTable(dataResult.get(hashcodes.indexOf(hashcode)), hashcode);
+			saveInAsyncTable(dataResult.get(hashcodes.indexOf(hashcode)), hashcode, isApiRequest);
 		}
 		Long end3 = System.nanoTime();
 		Double diff3 = ((end3 - start3) / 1e9); // Convert nanoseconds to seconds

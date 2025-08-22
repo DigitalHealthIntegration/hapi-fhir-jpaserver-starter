@@ -10,11 +10,7 @@ import ca.uhn.fhir.jpa.starter.model.ApiAsyncTaskEntity;
 import ca.uhn.fhir.jpa.starter.model.CategoryItem;
 import ca.uhn.fhir.jpa.starter.model.PatientIdentifierEntity;
 import ca.uhn.fhir.jpa.starter.model.ScoreCardIndicatorItem;
-import ca.uhn.fhir.jpa.starter.model.OrgHierarchy;
-import ca.uhn.fhir.jpa.starter.model.OrgIndicatorAverageResult;
-import ca.uhn.fhir.jpa.starter.model.ScoreCardResponseItem;
 import ca.uhn.fhir.rest.client.api.IGenericClient;
-import ca.uhn.fhir.jpa.starter.model.ReportType;
 import ca.uhn.fhir.rest.gclient.IQuery;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
@@ -32,11 +28,7 @@ import com.iprd.report.model.definition.BarChartItemDefinition;
 import com.iprd.report.model.definition.FhirPathTransformation;
 import com.iprd.report.model.definition.BarComponent;
 import com.iprd.report.model.definition.ANCDailySummaryConfig;
-import com.iprd.report.model.data.BarChartItemDataCollection;
-import com.iprd.report.model.data.LineChartItemCollection;
 import com.iprd.report.model.definition.IndicatorItem;
-import com.iprd.report.model.data.PieChartItemDataCollection;
-import com.iprd.report.model.data.ScoreCardItem;
 import org.hibernate.SessionFactory;
 import org.hl7.fhir.instance.model.api.IBaseBundle;
 import org.hl7.fhir.r4.model.Organization;
@@ -89,14 +81,13 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.times;
@@ -574,7 +565,7 @@ class HelperServiceTest {
 		doNothing().when(notificationDataSourceMock).update(any());
 		// Replace the actual instance with the mock in NotificationDataSource
 		Whitebox.setInternalState(NotificationDataSource.class, notificationDataSourceMock);
-		helperService.saveInAsyncTable(dataResult,"68455");
+		helperService.saveInAsyncTable(dataResult,"68455", true);
 		verify(notificationDataSourceMock).update(any(ApiAsyncTaskEntity.class));
 		// Verify the update method was called with the captured argument
 		ArgumentCaptor<ApiAsyncTaskEntity> argumentCaptor = ArgumentCaptor.forClass(ApiAsyncTaskEntity.class);
@@ -648,19 +639,19 @@ class HelperServiceTest {
 		executor.initialize();
 		when(helperServiceMoc.getAsyncExecutor(
 		)).thenReturn(executor);
-		doNothing().when(helperServiceMoc).saveQueryResult(anyString(),anyString(),anyString(),any(),anyList(),anyString(),anyList());
+		doNothing().when(helperServiceMoc).saveQueryResult(anyString(),anyString(),anyString(),any(),anyList(),anyString(),anyList(),eq(false));
 		doAnswer(invocation -> {
 			latch.countDown();
 			return null;
-		}).when(helperServiceMoc).saveQueryResult(anyString(), anyString(), anyString(), any(), anyList(), anyString(), anyList());
+		}).when(helperServiceMoc).saveQueryResult(anyString(), anyString(), anyString(), any(), anyList(), anyString(), anyList(),eq(false));
 		// Call the method
-		doCallRealMethod().when(helperServiceMoc).saveQueryResultAndHandleException(organizationId, startDate, endDate, filters, hashcodes, env, ancDailySummaryConfig);
-		helperServiceMoc.saveQueryResultAndHandleException(organizationId, startDate, endDate, filters, hashcodes, env, ancDailySummaryConfig);
+		doCallRealMethod().when(helperServiceMoc).saveQueryResultAndHandleException(organizationId, startDate, endDate, filters, hashcodes, env, ancDailySummaryConfig, true);
+		helperServiceMoc.saveQueryResultAndHandleException(organizationId, startDate, endDate, filters, hashcodes, env, ancDailySummaryConfig, true);
 		// Wait for the asynchronous operation to complete
 		assertTrue(latch.await(5, TimeUnit.SECONDS));
 		// Verify that the saveQueryResult method was called
 		verify(helperServiceMoc, times(1)).saveQueryResult(
-			eq(organizationId), eq(startDate), eq(endDate), eq(filters), eq(hashcodes), eq(env), eq(ancDailySummaryConfig)
+			eq(organizationId), eq(startDate), eq(endDate), eq(filters), eq(hashcodes), eq(env), eq(ancDailySummaryConfig),eq(false)
 		);
 		executor.shutdown();
 	}
@@ -688,11 +679,11 @@ class HelperServiceTest {
 			.thenReturn(new ArrayList<ApiAsyncTaskEntity>());
 		helperServiceMock.datasource = notificationDataSourceMock;
 		doNothing().when(notificationDataSourceMock).insert(any());
-		doNothing().when(helperServiceMock).saveQueryResultAndHandleException(anyString(),anyString(),anyString(),any(),anyList(),anyString(),anyList());
+		doNothing().when(helperServiceMock).saveQueryResultAndHandleException(anyString(),anyString(),anyString(),any(),anyList(),anyString(),anyList(), true);
 		doCallRealMethod().when(helperServiceMock).processCategories(organizationId,startDate,endDate,env,filters,true);
 		Map<String,String> categoryWithHashCodes =  helperServiceMock.processCategories(organizationId,startDate,endDate,env,filters,true);
 		ArgumentCaptor<List<ANCDailySummaryConfig>> argumentCaptor = ArgumentCaptor.forClass(List.class);
-		verify(helperServiceMock).saveQueryResultAndHandleException(anyString(),anyString(),anyString(),any(),anyList(),anyString(),argumentCaptor.capture());
+		verify(helperServiceMock).saveQueryResultAndHandleException(anyString(),anyString(),anyString(),any(),anyList(),anyString(),argumentCaptor.capture(), true);
 		List<ANCDailySummaryConfig> capturedList = argumentCaptor.getValue();
 		assertEquals(ancDailySummaryConfig,capturedList);
 		assertEquals(categoryWithHashCodes.get("antenatal"),"e15b899b-8d94-4279-8cb7-3eb90a14279b2023-11-012023-11-01antenatalV2age-2");

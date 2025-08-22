@@ -1,8 +1,10 @@
 package com.iprd.fhir.utils;
 
+import com.github.javafaker.Faker;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.iprd.report.FhirPath;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -572,5 +574,22 @@ public class Utils {
 		return dates.stream()
 			.map(Date::toLocalDate)
 			.noneMatch(date -> date.equals(currentLocalDate));
+	}
+
+	public static String generateRandomName(){
+		Faker faker = new Faker();
+		return faker.name().fullName();
+	}
+
+	public static String generateRandomPatientOclId(){
+		return RandomStringUtils.random(12, true, true);
+	}
+
+	public static String generateRandomDate(){
+		Random random = new Random();
+		int minDay = (int) LocalDate.of(1900, 1, 1).toEpochDay();
+		int maxDay = (int) LocalDate.of(2015, 1, 1).toEpochDay();
+		long randomDay = minDay + random.nextInt(maxDay - minDay);
+		return LocalDate.ofEpochDay(randomDay).toString();
 	}
 }
