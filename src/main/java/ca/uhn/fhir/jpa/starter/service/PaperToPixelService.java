@@ -71,8 +71,13 @@ public class PaperToPixelService {
 				.path("/image")
 				.toUriString();
 
-
-			return new DocumentReviewPayload(imageUrl, rawData.getHeaders(), rowsWithCoordinates);
+			return new DocumentReviewPayload(
+				imageUrl,
+				rawData.getContext(),
+				rawData.getHeaders(),
+				rowsWithCoordinates, // This is the correctly processed list of rows
+				rawData.getTotals()
+			);
 
 
 		} catch (IOException e) {
@@ -90,7 +95,16 @@ public class PaperToPixelService {
 	 * @param imageHeight The height of the source image.
 	 * @return A list of rows where each cell contains its text and a calculated BoundingBox.
 	 */
-	private List<List<CellData>> calculateCoordinates(List<String> headers, List<List<String>> rows, float imageWidth, float imageHeight) {
+	private List<List<CellData>> calculateCoordinates(
+		List<String> headers,
+		List<List<String>> rows,
+		float imageWidth,
+		float imageHeight
+	) {
+		if (headers == null || rows == null) {
+			return new ArrayList<>();
+		}
+
 		int numColumns = headers.size();
 		int numDataRows = rows.size();
 
@@ -115,7 +129,9 @@ public class PaperToPixelService {
 			float bottom = top + rowHeight;
 
 			for (int colIndex = 0; colIndex < numColumns; colIndex++) {
-				String text = (colIndex < rowValues.size()) ? rowValues.get(colIndex) : "";
+				String text = (rowValues != null && colIndex < rowValues.size())
+					? rowValues.get(colIndex)
+					: "";
 				float left = horizontalMargin + (colIndex * columnWidth);
 				float right = left + columnWidth;
 
