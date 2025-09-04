@@ -109,6 +109,7 @@ public class AppProperties {
 	private String image_path = null;
 	private String calib_path = null;
 	private String audio_recordings_path = null;
+	private String p2p_json_path = null;
 	private String notification_datasource_config_path = null;
 	private String gcp_credential_file_path = null;
 	private String sql_screen_time_file_path = null;
@@ -458,6 +459,14 @@ public class AppProperties {
 
 	public void setImage_path(String image_path) {
 		this.image_path = image_path;
+	}
+
+	public String getP2p_json_path() {
+		return p2p_json_path;
+	}
+
+	public void setP2p_json_path(String p2p_json_path) {
+		this.p2p_json_path = p2p_json_path;
 	}
 
 	public String getNotification_datasource_config_path() {

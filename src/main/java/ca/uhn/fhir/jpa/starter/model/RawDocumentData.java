@@ -9,6 +9,7 @@ import java.util.Map;
 
 @Getter
 public class RawDocumentData {
+	private final String jobId;
 	private final List<String> headers;
 	private final List<List<String>> rows;
 	private final Map<String, Object> context;
@@ -16,11 +17,13 @@ public class RawDocumentData {
 
 	@JsonCreator
 	public RawDocumentData(
+		@JsonProperty("jobId") String jobId,
 		@JsonProperty("headers") List<String> headers,
 		@JsonProperty("rows") List<List<String>> rows,
 		@JsonProperty("context") Map<String, Object> context,
 		@JsonProperty("totals") Map<String, Object> totals
 	) {
+		this.jobId = jobId;
 		this.headers = headers;
 		this.rows = rows;
 		this.context = context;

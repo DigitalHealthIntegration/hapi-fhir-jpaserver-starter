@@ -5,9 +5,10 @@ import ca.uhn.fhir.jpa.starter.model.CellData;
 import ca.uhn.fhir.jpa.starter.model.DocumentReviewPayload;
 import ca.uhn.fhir.jpa.starter.model.RawDocumentData;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.stereotype.Service;
@@ -28,12 +29,14 @@ import java.util.ArrayList;
 @Service
 public class PaperToPixelService {
 
+	private static final Logger logger = LoggerFactory.getLogger(PaperToPixelService.class);
+
 	private final ObjectMapper objectMapper;
 
 	@Value("${hapi.fhir.image_path}")
 	private String imageDir;
 
-	@Value("${hapi.fhir.json_path}")
+	@Value("${hapi.fhir.p2p_json_path}")
 	private String jsonDir;
 
 	@Autowired
@@ -43,7 +46,7 @@ public class PaperToPixelService {
 
 	public DocumentReviewPayload getDocumentReviewPayload(String documentId) {
 		try {
-			Path jsonPath = Paths.get(jsonDir, documentId + "_json.json");
+			Path jsonPath = findLatestVersionPath(Paths.get(jsonDir), documentId);
 			Path imagePath = Paths.get(imageDir,documentId + ".jpg");
 
 			File jsonFile = jsonPath.toFile();
@@ -72,10 +75,11 @@ public class PaperToPixelService {
 				.toUriString();
 
 			return new DocumentReviewPayload(
+				rawData.getJobId(),
 				imageUrl,
 				rawData.getContext(),
 				rawData.getHeaders(),
-				rowsWithCoordinates, // This is the correctly processed list of rows
+				rowsWithCoordinates,
 				rawData.getTotals()
 			);
 
@@ -157,5 +161,41 @@ public class PaperToPixelService {
 		} catch (MalformedURLException e) {
 			throw new RuntimeException("Error retrieving image for ID: " + documentId, e);
 		}
+	}
+
+	private Path findLatestVersionPath(Path directory, String documentId){
+		File dir = directory.toFile();
+		final Path originalPath = directory.resolve(documentId + "_v0.json");
+
+		if (!dir.exists() || !dir.isDirectory()) {
+			return originalPath;
+		}
+
+		File[] matchingFiles = dir.listFiles((d, name) -> name.startsWith(documentId) && name.contains("_v"));
+		if (matchingFiles == null || matchingFiles.length == 0) {
+			return originalPath;
+		}
+
+		int maxVersion = -1;
+		String latestFilename = "";
+		for (File file : matchingFiles) {
+			try {
+				int version = Integer.parseInt(file.getName().substring(file.getName().lastIndexOf("_v") + 2).replace(".json", ""));
+				if (version > maxVersion) {
+					maxVersion = version;
+					latestFilename = file.getName();
+				}
+			} catch (NumberFormatException e) {
+				logger.warn("Could not parse version number from malformed filename: {}", file.getName());
+			}
+		}
+
+		if (maxVersion != -1) {
+			logger.info("Found latest version v{} for document {}", maxVersion, documentId);
+			return directory.resolve(latestFilename);
+		} else {
+			return originalPath;
+		}
+
 	}
 }

@@ -85,6 +85,16 @@ public class TusController {
 			} catch (Exception e) {
 				throw new RuntimeException(e);
 			}
+		} else if (Objects.equals(fileType, TUSFileTypes.P2P_JSON.name())) {
+			try {
+				tusService.transferToFinalStorage(uploadUrl, fileType);
+				return ResponseEntity.ok("JSON file uploaded and saved successfully.");
+			} catch (TusException | IOException | UnsupportedAudioFileException e){
+				e.printStackTrace();
+				return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred while processing the json files.");
+			} catch (Exception e) {
+				throw new RuntimeException(e);
+			}
 		} else{
 			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Unsupported file type.");
 		}

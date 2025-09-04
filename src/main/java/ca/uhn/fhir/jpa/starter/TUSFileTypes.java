@@ -3,5 +3,6 @@ package ca.uhn.fhir.jpa.starter;
 public enum TUSFileTypes {
 	IMAGE,
 	AUDIO,
-	LOFILE
+	LOFILE,
+	P2P_JSON
 }

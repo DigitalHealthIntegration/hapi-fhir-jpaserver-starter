@@ -32,6 +32,8 @@ public class FileStrategyContext {
 	private CalibFileStrategy calibFileStrategy;
 	@Autowired
 	private TusServerProperties tusServerProperties;
+	@Autowired
+	private JsonFileStrategy jsonFileStrategy;
 
 	private FileStrategy strategy;
 
@@ -60,6 +62,8 @@ public class FileStrategyContext {
 				return loFileStrategy;
 			case "CALIB":
 				return calibFileStrategy;
+			case "P2P_JSON":
+				return jsonFileStrategy;
 			default:
 				return null;
 		}
@@ -96,6 +100,8 @@ public class FileStrategyContext {
 			return TUSFileTypes.AUDIO.name();
 		} else if (fileName.contains(".lo") && !isCalibFile.equals("True")) {
 			return TUSFileTypes.LOFILE.name();
+		} else if (fileName.endsWith(".json")) {
+			return TUSFileTypes.P2P_JSON.name();
 		}
 		return "UNKNOWN";
 	}
