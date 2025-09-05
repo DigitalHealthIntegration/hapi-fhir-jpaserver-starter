@@ -16,10 +16,11 @@ public class EmailScheduleData {
 	private String emailSubject;
 	private String scheduleType;
 	private Timestamp updatedAt;
+	private String cronExpression; // FIX: Added the missing field
 
 	@Override
 	public String toString() {
-		return String.format("EmailScheduleData{id=%d, orgId='%s', recipientEmail='%s', emailSubject='%s', scheduleType='%s', updatedAt=%s}",
-			id, orgId, recipientEmail, emailSubject, scheduleType, updatedAt);
+		return String.format("EmailScheduleData{id=%d, orgId='%s', scheduleType='%s', cronExpression='%s'}",
+			id, orgId, scheduleType, cronExpression);
 	}
 }

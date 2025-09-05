@@ -33,7 +33,7 @@ public class PaperToPixelService {
 
 	private final ObjectMapper objectMapper;
 
-	@Value("${hapi.fhir.image_path}")
+	@Value("${hapi.fhir.processed_image_path}")
 	private String imageDir;
 
 	@Value("${hapi.fhir.p2p_json_path}")

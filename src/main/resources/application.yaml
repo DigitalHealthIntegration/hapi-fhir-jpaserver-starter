@@ -84,12 +84,24 @@ rabbitmq:
    queue:
       email:
          name: email_queue
+      p2pImage:
+         name: ImagesQueue
+      document:
+         name: DocumentsQueue
+
    exchange:
       email:
          name: email_exchange
+      p2pExchange:
+         name: p2p-direct-exchange
+
    binding:
       email:
          name: email_routing_key
+      p2pImage:
+         name: image.route
+      document:
+         name: document.route
 
 report:
    env: V2
@@ -117,6 +129,7 @@ hapi:
       fhir_version: R4
       #      hibernate.cache.use_minimal_puts: false
       image_path: image
+      processed_image_path: processed_image
       p2p_json_path: p2p_json
       hyper_spectral_files_path: hyperSpectralFiles
       calib_path: hyperSpectralFiles/calibration
