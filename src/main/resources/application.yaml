@@ -1,6 +1,10 @@
 server:
    port: 8085
 
+management:
+   health:
+      mail:
+         enabled: false
 spring:
    main:
       allow-circular-references: true

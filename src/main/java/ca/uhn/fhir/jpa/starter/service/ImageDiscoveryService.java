@@ -1,47 +1,34 @@
 package ca.uhn.fhir.jpa.starter.service;
 
-// The ImageQueuePayload import is no longer needed
+import ca.uhn.fhir.jpa.starter.AppProperties;
+import ca.uhn.fhir.jpa.starter.RabbitMQProperties;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
+import java.nio.file.*;
 
 @Service
 @Slf4j
 public class ImageDiscoveryService {
 
 	private final RabbitTemplate rabbitTemplate;
+	private final AppProperties appProperties;
+	private final RabbitMQProperties rabbitMQProperties;
 
-	@Value("${hapi.fhir.image_path}")
-	private String unprocessedDir;
-
-	@Value("${hapi.fhir.processed_image_path}")
-	private String processedDir;
-
-	@Value("${rabbitmq.exchange.p2pExchange.name}")
-	private String exchange;
-
-	@Value("${rabbitmq.binding.p2pImage.name}")
-	private String imageRoutingKey;
-
-	@Autowired
-	public ImageDiscoveryService(RabbitTemplate rabbitTemplate) {
+	public ImageDiscoveryService(RabbitTemplate rabbitTemplate, AppProperties appProperties, RabbitMQProperties rabbitMQProperties) {
 		this.rabbitTemplate = rabbitTemplate;
+		this.appProperties = appProperties;
+		this.rabbitMQProperties = rabbitMQProperties;
 	}
 
 	@Scheduled(fixedRate = 10000)
 	public void discoverAndQueueImages() {
-		Path sourcePath = Paths.get(unprocessedDir);
-		Path targetPath = Paths.get(processedDir);
+		Path sourcePath = Paths.get(appProperties.getImage_path());
+		Path targetPath = Paths.get(appProperties.getProcessed_image_path());
 
 		try {
 			if (!Files.exists(sourcePath)) Files.createDirectories(sourcePath);
@@ -67,7 +54,10 @@ public class ImageDiscoveryService {
 
 				String documentId = filename.substring(0, filename.lastIndexOf('.'));
 
-				rabbitTemplate.convertAndSend(exchange, imageRoutingKey, documentId);
+				String exchange = rabbitMQProperties.getExchange().getP2pExchange().getName();
+				String routingKey = rabbitMQProperties.getBinding().getP2pImage().getName();
+
+				rabbitTemplate.convertAndSend(exchange, routingKey, documentId);
 				log.info("Sent documentId '{}' to queue '{}'.", documentId, "ImagesQueue");
 
 				Path destinationFile = targetPath.resolve(filename);

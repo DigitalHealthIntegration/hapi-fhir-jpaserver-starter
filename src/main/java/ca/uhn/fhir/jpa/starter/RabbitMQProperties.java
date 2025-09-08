@@ -33,7 +33,6 @@ public class RabbitMQProperties {
 			public void setName(String name) { this.name = name; }
 		}
 
-		// Getters and Setters
 		public Email getEmail() { return email; }
 		public void setEmail(Email email) { this.email = email; }
 		public P2pImage getP2pImage() { return p2pImage; }
@@ -42,7 +41,6 @@ public class RabbitMQProperties {
 		public void setDocument(Document document) { this.document = document; }
 	}
 
-	// --- Nested Exchange Properties ---
 	public static class Exchange {
 		private Email email;
 		private P2pExchange p2pExchange;
@@ -59,38 +57,35 @@ public class RabbitMQProperties {
 			public void setName(String name) { this.name = name; }
 		}
 
-		// Getters and Setters
 		public Email getEmail() { return email; }
 		public void setEmail(Email email) { this.email = email; }
 		public P2pExchange getP2pExchange() { return p2pExchange; }
 		public void setP2pExchange(P2pExchange p2pExchange) { this.p2pExchange = p2pExchange; }
 	}
 
-	// --- Nested Binding (Routing Key) Properties ---
 	public static class Binding {
 		private Email email;
 		private P2pImage p2pImage;
 		private Document document;
 
 		public static class Email {
-			private String name; // This holds the routing key
+			private String name;
 			public String getName() { return name; }
 			public void setName(String name) { this.name = name; }
 		}
 
 		public static class P2pImage {
-			private String name; // This holds the routing key
+			private String name;
 			public String getName() { return name; }
 			public void setName(String name) { this.name = name; }
 		}
 
 		public static class Document {
-			private String name; // This holds the routing key
+			private String name;
 			public String getName() { return name; }
 			public void setName(String name) { this.name = name; }
 		}
 
-		// Getters and Setters
 		public Email getEmail() { return email; }
 		public void setEmail(Email email) { this.email = email; }
 		public P2pImage getP2pImage() { return p2pImage; }
@@ -99,7 +94,6 @@ public class RabbitMQProperties {
 		public void setDocument(Document document) { this.document = document; }
 	}
 
-	// --- Top-level Getters and Setters ---
 	public Queue getQueue() { return queue; }
 	public void setQueue(Queue queue) { this.queue = queue; }
 	public Exchange getExchange() { return exchange; }

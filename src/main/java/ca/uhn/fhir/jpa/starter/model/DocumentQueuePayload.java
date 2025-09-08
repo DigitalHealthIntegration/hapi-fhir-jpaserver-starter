@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import java.io.Serializable;
+import java.util.Map;
 
 @Getter
 @Setter
@@ -12,5 +13,5 @@ import java.io.Serializable;
 @AllArgsConstructor
 public class DocumentQueuePayload implements Serializable {
 	private String filename;
-	private String jsonContent;
+	private Map<String, Object> jsonContent;
 }

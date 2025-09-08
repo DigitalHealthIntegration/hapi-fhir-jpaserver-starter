@@ -107,7 +107,7 @@ public class AppProperties {
 	private Integer bundle_batch_pool_max_size = 100;
 	private List<String> local_base_urls = new ArrayList<>();
 	private String image_path = null;
-	private String processes_image_path = null;
+	private String processed_image_path = null;
 	private String calib_path = null;
 	private String audio_recordings_path = null;
 	private String p2p_json_path = null;
@@ -470,12 +470,12 @@ public class AppProperties {
 		this.p2p_json_path = p2p_json_path;
 	}
 
-	public String getProcesses_path(){
-		return processes_image_path;
+	public String getProcessed_image_path(){
+		return processed_image_path;
 	}
 
-	public void setProcesses_image_path(String processes_image_path){
-		this.processes_image_path = processes_image_path;
+	public void setProcessed_image_path(String processed_image_path){
+		this.processed_image_path = processed_image_path;
 	}
 
 	public String getNotification_datasource_config_path() {
