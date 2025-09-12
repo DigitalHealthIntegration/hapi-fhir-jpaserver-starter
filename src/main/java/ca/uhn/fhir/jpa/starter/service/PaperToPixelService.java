@@ -1,5 +1,6 @@
 package ca.uhn.fhir.jpa.starter.service;
 
+import ca.uhn.fhir.jpa.starter.AppProperties;
 import ca.uhn.fhir.jpa.starter.model.BoundingBox;
 import ca.uhn.fhir.jpa.starter.model.CellData;
 import ca.uhn.fhir.jpa.starter.model.DocumentReviewPayload;
@@ -8,7 +9,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.stereotype.Service;
@@ -33,21 +33,18 @@ public class PaperToPixelService {
 
 	private final ObjectMapper objectMapper;
 
-	@Value("${hapi.fhir.processed_image_path}")
-	private String imageDir;
-
-	@Value("${hapi.fhir.p2p_json_path}")
-	private String jsonDir;
+	private final AppProperties appProperties;
 
 	@Autowired
-	public PaperToPixelService(ObjectMapper objectMapper) {
+	public PaperToPixelService(ObjectMapper objectMapper, AppProperties appProperties) {
 		this.objectMapper = objectMapper;
+		this.appProperties = appProperties;
 	}
 
 	public DocumentReviewPayload getDocumentReviewPayload(String documentId) {
 		try {
-			Path jsonPath = findLatestVersionPath(Paths.get(jsonDir), documentId);
-			Path imagePath = Paths.get(imageDir,documentId + ".jpg");
+			Path jsonPath = findLatestVersionPath(Paths.get(appProperties.getP2p_json_path()), documentId);
+			Path imagePath = Paths.get(appProperties.getProcessed_image_path(),documentId + ".jpg");
 
 			File jsonFile = jsonPath.toFile();
 			if (!jsonFile.exists()) {
@@ -150,7 +147,7 @@ public class PaperToPixelService {
 
 	public Resource getDocumentImage(String documentId) {
 		try {
-			Path filePath = Paths.get(imageDir).resolve(documentId + ".jpg").normalize();
+			Path filePath = Paths.get(appProperties.getProcessed_image_path()).resolve(documentId + ".jpg").normalize();
 			Resource resource = new UrlResource(filePath.toUri());
 
 			if (resource.exists() && resource.isReadable()) {
